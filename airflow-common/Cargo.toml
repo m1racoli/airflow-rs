@@ -6,7 +6,9 @@ description = "Common definitions and traits for working with Airflow."
 license-file = "../LICENSE"
 
 [dependencies]
+cfg-if = "1"
+serde = { version = "1", default-features = false, features = ["derive", "alloc"] }
 
 [features]
 default = ["std"]
-std = []
+std = ["serde/std"]
