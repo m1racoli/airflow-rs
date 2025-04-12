@@ -181,3 +181,63 @@ impl fmt::Display for TerminalTIState {
         TaskInstanceState::from(*self).fmt(f)
     }
 }
+
+/// Non-success states that a Task Instance can be in that indicate it has reached a terminal state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TerminalTIStateNonSuccess {
+    /// Task vanished from DAG before it ran
+    Removed,
+    /// Task errored out
+    Failed,
+    /// Skipped by branching or some other mechanism
+    Skipped,
+}
+
+impl From<TerminalTIStateNonSuccess> for TaskInstanceState {
+    fn from(state: TerminalTIStateNonSuccess) -> Self {
+        match state {
+            TerminalTIStateNonSuccess::Removed => TaskInstanceState::Removed,
+            TerminalTIStateNonSuccess::Failed => TaskInstanceState::Failed,
+            TerminalTIStateNonSuccess::Skipped => TaskInstanceState::Skipped,
+        }
+    }
+}
+
+impl From<TerminalTIStateNonSuccess> for TerminalTIState {
+    fn from(state: TerminalTIStateNonSuccess) -> Self {
+        match state {
+            TerminalTIStateNonSuccess::Removed => TerminalTIState::Removed,
+            TerminalTIStateNonSuccess::Failed => TerminalTIState::Failed,
+            TerminalTIStateNonSuccess::Skipped => TerminalTIState::Skipped,
+        }
+    }
+}
+
+impl From<TaskInstanceState> for Option<TerminalTIStateNonSuccess> {
+    fn from(state: TaskInstanceState) -> Self {
+        match state {
+            TaskInstanceState::Removed => Some(TerminalTIStateNonSuccess::Removed),
+            TaskInstanceState::Failed => Some(TerminalTIStateNonSuccess::Failed),
+            TaskInstanceState::Skipped => Some(TerminalTIStateNonSuccess::Skipped),
+            _ => None,
+        }
+    }
+}
+
+impl From<TerminalTIState> for Option<TerminalTIStateNonSuccess> {
+    fn from(state: TerminalTIState) -> Self {
+        match state {
+            TerminalTIState::Removed => Some(TerminalTIStateNonSuccess::Removed),
+            TerminalTIState::Failed => Some(TerminalTIStateNonSuccess::Failed),
+            TerminalTIState::Skipped => Some(TerminalTIStateNonSuccess::Skipped),
+            _ => None,
+        }
+    }
+}
+
+impl fmt::Display for TerminalTIStateNonSuccess {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        TaskInstanceState::from(*self).fmt(f)
+    }
+}
