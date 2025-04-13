@@ -22,7 +22,7 @@ pub struct TaskInstanceKey {
 }
 
 impl TaskInstanceKey {
-    pub fn new(
+    fn new(
         dag_id: &str,
         task_id: &str,
         run_id: &str,
@@ -73,6 +73,25 @@ impl fmt::Display for TaskInstanceKey {
             f,
             "{}.{} {}, try_number: {}, map_index: {}",
             self.dag_id, self.task_id, self.run_id, self.try_number, self.map_index
+        )
+    }
+}
+
+/// A trait for types that represent a task instance.
+pub trait TaskInstanceLike {
+    fn dag_id(&self) -> &str;
+    fn task_id(&self) -> &str;
+    fn run_id(&self) -> &str;
+    fn try_number(&self) -> usize;
+    fn map_index(&self) -> Option<usize>;
+
+    fn ti_key(&self) -> TaskInstanceKey {
+        TaskInstanceKey::new(
+            self.dag_id(),
+            self.task_id(),
+            self.run_id(),
+            self.try_number(),
+            self.map_index(),
         )
     }
 }

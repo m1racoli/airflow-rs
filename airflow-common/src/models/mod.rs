@@ -1,3 +1,4 @@
-mod taskinstancekey;
+mod taskinstance;
 
-pub use taskinstancekey::TaskInstanceKey;
+pub use taskinstance::TaskInstanceKey;
+pub use taskinstance::TaskInstanceLike;
