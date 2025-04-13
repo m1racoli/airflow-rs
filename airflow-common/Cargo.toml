@@ -9,8 +9,9 @@ license-file = "../LICENSE"
 cfg-if = "1"
 chrono = { version = "0.4", default-features = false, features = ["serde", "alloc"] }
 serde = { version = "1", default-features = false, features = ["derive", "alloc"] }
+uuid = { version = "1", default-features = false, features = ["serde"] }
 
 [features]
 default = ["now", "std"]
 now = ["chrono/now"]
-std = ["chrono/std", "serde/std"]
+std = ["chrono/std", "serde/std", "uuid/std"]
