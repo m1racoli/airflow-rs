@@ -28,3 +28,38 @@ impl fmt::Display for DagRunType {
         }
     }
 }
+
+/// A secret string that hides its content in Debug and Display implementations.
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SecretString(String);
+
+impl SecretString {
+    /// Returns the inner secret string.
+    pub fn secret(&self) -> &str {
+        &self.0
+    }
+}
+
+impl From<String> for SecretString {
+    fn from(secret: String) -> Self {
+        SecretString(secret)
+    }
+}
+
+impl From<&str> for SecretString {
+    fn from(secret: &str) -> Self {
+        SecretString(secret.to_string())
+    }
+}
+
+impl fmt::Debug for SecretString {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "SecretString(***)")
+    }
+}
+
+impl fmt::Display for SecretString {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "***")
+    }
+}

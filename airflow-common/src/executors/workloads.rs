@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{datetime::DateTime, models::TaskInstanceLike};
+use crate::{datetime::DateTime, models::TaskInstanceLike, utils::SecretString};
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "std")] {
@@ -33,8 +33,7 @@ impl BundleInfo {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub struct ExecuteTask {
-    // TODO as secret
-    token: String,
+    token: SecretString,
     ti: TaskInstance,
     // TODO as path
     dag_rel_path: String,
@@ -44,7 +43,7 @@ pub struct ExecuteTask {
 }
 
 impl ExecuteTask {
-    pub fn token(&self) -> &str {
+    pub fn token(&self) -> &SecretString {
         &self.token
     }
 
