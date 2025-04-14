@@ -8,10 +8,12 @@ license-file = "../LICENSE"
 [dependencies]
 cfg-if = "1"
 chrono = { version = "0.4", default-features = false, features = ["serde", "alloc"] }
+jsonwebtoken = { version = "9", default-features = false, optional = true }
 serde = { version = "1", default-features = false, features = ["derive", "alloc"] }
 uuid = { version = "1", default-features = false, features = ["serde"] }
 
 [features]
-default = ["now", "std"]
+default = ["jsonwebtoken", "now", "std"]
+jsonwebtoken = ["dep:jsonwebtoken"]
 now = ["chrono/now"]
 std = ["chrono/std", "serde/std", "uuid/std"]
