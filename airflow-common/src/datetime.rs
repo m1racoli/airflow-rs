@@ -15,8 +15,25 @@ cfg_if::cfg_if! {
 pub struct DateTime(chrono::DateTime<chrono::Utc>);
 
 impl DateTime {
+    pub fn from_timestamp(secs: i64, nsecs: u32) -> Option<Self> {
+        let dt = chrono::DateTime::<chrono::Utc>::from_timestamp(secs, nsecs)?;
+        Some(DateTime(dt))
+    }
+
     pub fn min() -> Self {
         DateTime(chrono::DateTime::<chrono::Utc>::MIN_UTC)
+    }
+}
+
+impl From<chrono::DateTime<chrono::Utc>> for DateTime {
+    fn from(dt: chrono::DateTime<chrono::Utc>) -> Self {
+        DateTime(dt)
+    }
+}
+
+impl From<DateTime> for chrono::DateTime<chrono::Utc> {
+    fn from(dt: DateTime) -> Self {
+        dt.0
     }
 }
 
@@ -48,5 +65,25 @@ pub struct StdTimeProvider;
 impl TimeProvider for StdTimeProvider {
     fn now(&self) -> DateTime {
         DateTime(chrono::Utc::now())
+    }
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone, Copy)]
+pub struct MockTimeProvider {
+    now: DateTime,
+}
+
+#[cfg(test)]
+impl MockTimeProvider {
+    pub fn new(now: DateTime) -> Self {
+        MockTimeProvider { now }
+    }
+}
+
+#[cfg(test)]
+impl TimeProvider for MockTimeProvider {
+    fn now(&self) -> DateTime {
+        self.now
     }
 }
