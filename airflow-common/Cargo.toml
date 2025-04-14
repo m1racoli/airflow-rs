@@ -9,11 +9,13 @@ license-file = "../LICENSE"
 cfg-if = "1"
 chrono = { version = "0.4", default-features = false, features = ["serde", "alloc"] }
 jsonwebtoken = { version = "9", default-features = false, optional = true }
+jwt-compact = { version = "0.8", default-features = false, optional = true }
 serde = { version = "1", default-features = false, features = ["derive", "alloc"] }
 uuid = { version = "1", default-features = false, features = ["serde"] }
 
 [features]
 default = ["jsonwebtoken", "now", "std"]
 jsonwebtoken = ["dep:jsonwebtoken"]
+jwt-compact = ["dep:jwt-compact"]
 now = ["chrono/now"]
 std = ["chrono/std", "serde/std", "uuid/std"]
