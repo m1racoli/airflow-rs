@@ -4,6 +4,9 @@ cfg_if::cfg_if! {
     if #[cfg(feature = "std")] {
         use std::fmt;
     } else {
+        extern crate alloc;
+        use alloc::string::String;
+        use alloc::string::ToString;
         use core::fmt;
     }
 }
