@@ -13,9 +13,12 @@ jwt-compact = { version = "0.8", default-features = false, optional = true }
 serde = { version = "1", default-features = false, features = ["derive", "alloc"] }
 uuid = { version = "1", default-features = false, features = ["serde"] }
 
+[dev-dependencies]
+serde_json = { version = "1", default-features = false, features = ["alloc"] }
+
 [features]
 default = ["jsonwebtoken", "now", "std"]
 jsonwebtoken = ["dep:jsonwebtoken"]
 jwt-compact = ["dep:jwt-compact"]
 now = ["chrono/now"]
-std = ["chrono/std", "serde/std", "uuid/std"]
+std = ["chrono/std", "serde/std", "serde_json/std", "uuid/std"]

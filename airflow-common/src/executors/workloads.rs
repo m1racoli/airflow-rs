@@ -1,6 +1,10 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{datetime::DateTime, models::TaskInstanceLike, utils::SecretString};
+use crate::{
+    datetime::DateTime,
+    models::TaskInstanceLike,
+    utils::{MapIndex, SecretString},
+};
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "std")] {
@@ -77,7 +81,7 @@ pub struct TaskInstance {
     dag_id: String,
     run_id: String,
     try_number: usize,
-    map_index: i64,
+    map_index: MapIndex,
 
     pool_slots: usize,
     queue: String,
@@ -128,11 +132,7 @@ impl TaskInstanceLike for TaskInstance {
     }
 
     fn map_index(&self) -> Option<usize> {
-        if self.map_index == -1 {
-            None
-        } else {
-            Some(self.map_index as usize)
-        }
+        self.map_index.into()
     }
 }
 

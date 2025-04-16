@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::utils::MapIndex;
+
 cfg_if::cfg_if! {
     if #[cfg(feature = "std")] {
         use std::fmt;
@@ -18,7 +20,7 @@ pub struct TaskInstanceKey {
     task_id: String,
     run_id: String,
     try_number: usize,
-    map_index: i64, //TODO: can we use custom serde implementation?
+    map_index: MapIndex,
 }
 
 impl TaskInstanceKey {
@@ -29,16 +31,12 @@ impl TaskInstanceKey {
         try_number: usize,
         map_index: Option<usize>,
     ) -> Self {
-        let map_index = match map_index {
-            Some(i) => i as i64,
-            None => -1,
-        };
         Self {
             dag_id: dag_id.to_string(),
             task_id: task_id.to_string(),
             run_id: run_id.to_string(),
             try_number,
-            map_index,
+            map_index: map_index.into(),
         }
     }
 
@@ -59,11 +57,7 @@ impl TaskInstanceKey {
     }
 
     pub fn map_index(&self) -> Option<usize> {
-        if self.map_index == -1 {
-            None
-        } else {
-            Some(self.map_index as usize)
-        }
+        self.map_index.into()
     }
 }
 

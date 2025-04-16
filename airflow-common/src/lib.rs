@@ -5,3 +5,7 @@ pub mod datetime;
 pub mod executors;
 pub mod models;
 pub mod utils;
+
+#[cfg(not(feature = "std"))]
+#[macro_use]
+extern crate alloc;
