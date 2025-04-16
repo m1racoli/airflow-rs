@@ -99,19 +99,16 @@ impl<T: TimeProvider + Clone> JWTGenerator for DefaultJWTGenerator<T> {
     fn generate(&self, method: &str) -> Result<String, Self::Error> {
         let now = self.time_provider.now();
         let leeway = chrono::Duration::seconds(self.valid_for as i64);
-        let time_options = jwt_compact::TimeOptions::new(leeway, move || now.into());
+        let time_options = jwt_compact::TimeOptions::new(leeway, move || now);
         let claims = Claims {
             issuer: self.issuer.as_deref(),
             audience: &self.audience,
-            // not_before: now,
-            // expiry: now + self.valid_for as i64,
-            // issued_at: now,
             method,
         };
 
         let header = jwt_compact::Header::empty();
         let claims: jwt_compact::Claims<Claims<'_, '_, '_>> = jwt_compact::Claims::new(claims)
-            .set_not_before(now.into())
+            .set_not_before(now)
             .set_duration_and_issuance(&time_options, leeway);
         let bytes: &[u8] = self.key.secret().as_ref();
         let key = jwt_compact::alg::Hs512Key::new(bytes);
@@ -193,7 +190,6 @@ mod tests {
             .unwrap();
 
         let claims = decoded.claims();
-        let now: chrono::DateTime<chrono::Utc> = now.into();
         assert_eq!(
             claims.expiration,
             Some(now + chrono::Duration::seconds(600))

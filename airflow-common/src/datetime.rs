@@ -1,55 +1,8 @@
-use serde::{Deserialize, Serialize};
-
-cfg_if::cfg_if! {
-    if #[cfg(feature = "std")] {
-        use std::fmt;
-        use std::ops;
-    } else {
-        use core::fmt;
-        use core::ops;
-    }
-}
-
 /// A UTC date time to be used in Airflow.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-pub struct DateTime(chrono::DateTime<chrono::Utc>);
+pub type DateTime = chrono::DateTime<chrono::Utc>;
 
-impl DateTime {
-    pub fn from_timestamp(secs: i64, nsecs: u32) -> Option<Self> {
-        let dt = chrono::DateTime::<chrono::Utc>::from_timestamp(secs, nsecs)?;
-        Some(DateTime(dt))
-    }
-
-    pub fn min() -> Self {
-        DateTime(chrono::DateTime::<chrono::Utc>::MIN_UTC)
-    }
-}
-
-impl From<chrono::DateTime<chrono::Utc>> for DateTime {
-    fn from(dt: chrono::DateTime<chrono::Utc>) -> Self {
-        DateTime(dt)
-    }
-}
-
-impl From<DateTime> for chrono::DateTime<chrono::Utc> {
-    fn from(dt: DateTime) -> Self {
-        dt.0
-    }
-}
-
-impl ops::Deref for DateTime {
-    type Target = chrono::DateTime<chrono::Utc>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl fmt::Display for DateTime {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
-    }
-}
+/// The minimum possible DateTime.
+pub const MIN_UTC: DateTime = chrono::DateTime::<chrono::Utc>::MIN_UTC;
 
 /// A trait for providing the current time as a [DateTime].
 pub trait TimeProvider {
@@ -64,7 +17,7 @@ pub struct StdTimeProvider;
 #[cfg(feature = "now")]
 impl TimeProvider for StdTimeProvider {
     fn now(&self) -> DateTime {
-        DateTime(chrono::Utc::now())
+        chrono::Utc::now()
     }
 }
 
