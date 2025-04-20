@@ -1,0 +1,13 @@
+[package]
+name = "airflow-task-sdk"
+version = "0.1.0"
+edition = "2024"
+license-file = "../LICENSE"
+
+[dependencies]
+airflow-common = { path = "../airflow-common", default-features = false }
+cfg-if = "1"
+
+[features]
+default = ["std"]
+std = ["airflow-common/std"]

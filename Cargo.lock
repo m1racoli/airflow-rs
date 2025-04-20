@@ -16,6 +16,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "airflow-task-sdk"
+version = "0.1.0"
+dependencies = [
+ "airflow-common",
+ "cfg-if",
+]
+
+[[package]]
 name = "anyhow"
 version = "1.0.98"
 source = "registry+https://github.com/rust-lang/crates.io-index"
