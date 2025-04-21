@@ -18,6 +18,11 @@ dependencies = [
 [[package]]
 name = "airflow-edge-sdk"
 version = "0.1.0"
+dependencies = [
+ "airflow-common",
+ "cfg-if",
+ "serde",
+]
 
 [[package]]
 name = "airflow-task-sdk"
