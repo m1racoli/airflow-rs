@@ -7,15 +7,17 @@ use crate::utils::SecretString;
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "std")] {
+        use std::error;
     } else {
         extern crate alloc;
         use alloc::string::String;
         use alloc::string::ToString;
+        use core::error;
     }
 }
 
 pub trait JWTGenerator {
-    type Error;
+    type Error: error::Error;
 
     fn generate(&self, method: &str) -> Result<String, Self::Error>;
 }

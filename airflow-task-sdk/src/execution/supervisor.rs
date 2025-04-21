@@ -5,15 +5,17 @@ use airflow_common::{
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "std")] {
+        use std::error;
         use std::future;
     } else {
+        use core::error;
         use core::future;
     }
 }
 
 /// This is the boundary between worker and task execution.
 pub trait Supervisor {
-    type Error;
+    type Error: error::Error;
 
     /// Run a single task execution to completion.
     ///

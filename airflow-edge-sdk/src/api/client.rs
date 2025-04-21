@@ -6,17 +6,19 @@ use super::{EdgeJobFetched, WorkerRegistrationReturn, WorkerSetStateReturn};
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "std")] {
+        use std::error;
         use std::future;
     } else {
         extern crate alloc;
         use alloc::string::String;
         use alloc::vec::Vec;
+        use core::error;
         use core::future;
     }
 }
 
 pub trait EdgeApiClient {
-    type Error;
+    type Error: error::Error;
 
     fn worker_register(
         &self,
