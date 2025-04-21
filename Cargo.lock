@@ -16,6 +16,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "airflow-edge-sdk"
+version = "0.1.0"
+
+[[package]]
 name = "airflow-task-sdk"
 version = "0.1.0"
 dependencies = [
