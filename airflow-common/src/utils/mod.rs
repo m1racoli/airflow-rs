@@ -2,7 +2,7 @@ mod map_index;
 mod state;
 mod types;
 
-pub(crate) use map_index::MapIndex;
+pub use map_index::MapIndex;
 pub use state::IntermediateTIState;
 pub use state::TaskInstanceState;
 pub use state::TerminalTIState;
