@@ -1,5 +1,13 @@
 use serde::{Deserialize, Serialize};
 
+cfg_if::cfg_if! {
+    if #[cfg(feature = "std")] {
+    } else {
+        extern crate alloc;
+        use alloc::string::String;
+    }
+}
+
 /// Status of a Edge Worker instance.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
 #[serde(rename_all = "snake_case")]
@@ -28,11 +36,14 @@ pub enum EdgeWorkerState {
     OfflineMaintenance,
 }
 
-/// Produce the sysinfo from worker to post to central site.
-#[derive(Debug, Serialize, Clone)]
-pub struct SysInfo<'a> {
-    pub airflow_version: &'a str,
-    pub edge_provider_version: &'a str,
+/// System information of the worker.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SysInfo {
+    /// Airflow version.
+    pub airflow_version: String,
+    /// Edge provider version.
+    pub edge_provider_version: String,
+    /// Number of total slots for running tasks.
     pub concurrency: usize,
     /// Number of free slots for running tasks.
     pub free_concurrency: usize,

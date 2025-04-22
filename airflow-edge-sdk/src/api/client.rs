@@ -54,7 +54,7 @@ pub trait EdgeApiClient {
     fn logs_push(
         &self,
         key: &TaskInstanceKey,
-        log_chunk_time: DateTime,
+        log_chunk_time: &DateTime,
         log_chunk_data: &str,
     ) -> impl future::Future<Output = Result<(), Self::Error>> + Send;
 }
