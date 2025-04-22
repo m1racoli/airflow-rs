@@ -21,20 +21,18 @@ impl TimeProvider for StdTimeProvider {
     }
 }
 
-#[cfg(test)]
+/// A mock time provider that returns a fixed time.
 #[derive(Debug, Clone, Copy)]
 pub struct MockTimeProvider {
     now: DateTime,
 }
 
-#[cfg(test)]
 impl MockTimeProvider {
     pub fn new(now: DateTime) -> Self {
         MockTimeProvider { now }
     }
 }
 
-#[cfg(test)]
 impl TimeProvider for MockTimeProvider {
     fn now(&self) -> DateTime {
         self.now
