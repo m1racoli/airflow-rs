@@ -8,11 +8,13 @@ use crate::utils::SecretString;
 cfg_if::cfg_if! {
     if #[cfg(feature = "std")] {
         use std::error;
+        use std::io;
     } else {
         extern crate alloc;
         use alloc::string::String;
         use alloc::string::ToString;
         use core::error;
+        use core::io;
     }
 }
 
@@ -115,6 +117,31 @@ impl<T: TimeProvider + Clone> JWTGenerator for DefaultJWTGenerator<T> {
         let bytes: &[u8] = self.key.secret().as_ref();
         let key = jwt_compact::alg::Hs512Key::new(bytes);
         jwt_compact::alg::Hs512.token(&header, &claims, &key)
+    }
+}
+
+/// A mock JWT generator that generates a simple token for testing purposes.
+///
+/// The token has the form `<method>:<secret>`, where `<method>` is the method passed to the `generate`
+/// method and `<secret>` is the secret used to create the generator.
+#[derive(Debug, Clone)]
+pub struct MockJWTGenerator {
+    secret: String,
+}
+
+impl MockJWTGenerator {
+    pub fn new(secret: &str) -> Self {
+        MockJWTGenerator {
+            secret: secret.to_string(),
+        }
+    }
+}
+
+impl JWTGenerator for MockJWTGenerator {
+    type Error = io::Error;
+
+    fn generate(&self, method: &str) -> Result<String, Self::Error> {
+        Ok(format!("{}:{}", method, self.secret))
     }
 }
 
