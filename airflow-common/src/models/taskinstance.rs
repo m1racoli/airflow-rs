@@ -24,7 +24,7 @@ pub struct TaskInstanceKey {
 }
 
 impl TaskInstanceKey {
-    fn new(
+    pub fn new(
         dag_id: &str,
         task_id: &str,
         run_id: &str,
