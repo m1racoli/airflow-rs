@@ -49,7 +49,7 @@ impl fmt::Display for MapIndex {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.0 {
             Some(index) => index.fmt(f),
-            None => write!(f, "None"),
+            None => write!(f, "-1"),
         }
     }
 }

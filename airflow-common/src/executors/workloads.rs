@@ -131,8 +131,8 @@ impl TaskInstanceLike for TaskInstance {
         self.try_number
     }
 
-    fn map_index(&self) -> Option<usize> {
-        self.map_index.into()
+    fn map_index(&self) -> MapIndex {
+        self.map_index
     }
 }
 

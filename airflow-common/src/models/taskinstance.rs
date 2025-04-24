@@ -29,14 +29,14 @@ impl TaskInstanceKey {
         task_id: &str,
         run_id: &str,
         try_number: usize,
-        map_index: Option<usize>,
+        map_index: MapIndex,
     ) -> Self {
         Self {
             dag_id: dag_id.to_string(),
             task_id: task_id.to_string(),
             run_id: run_id.to_string(),
             try_number,
-            map_index: map_index.into(),
+            map_index,
         }
     }
 
@@ -56,8 +56,8 @@ impl TaskInstanceKey {
         self.try_number
     }
 
-    pub fn map_index(&self) -> Option<usize> {
-        self.map_index.into()
+    pub fn map_index(&self) -> MapIndex {
+        self.map_index
     }
 }
 
@@ -77,7 +77,7 @@ pub trait TaskInstanceLike {
     fn task_id(&self) -> &str;
     fn run_id(&self) -> &str;
     fn try_number(&self) -> usize;
-    fn map_index(&self) -> Option<usize>;
+    fn map_index(&self) -> MapIndex;
 
     fn ti_key(&self) -> TaskInstanceKey {
         TaskInstanceKey::new(
