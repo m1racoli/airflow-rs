@@ -2,7 +2,7 @@ use airflow_common::{datetime::DateTime, models::TaskInstanceKey, utils::TaskIns
 
 use crate::models::{EdgeWorkerState, SysInfo};
 
-use super::{EdgeJobFetched, WorkerRegistrationReturn, WorkerSetStateReturn};
+use super::{EdgeJobFetched, HealthReturn, WorkerRegistrationReturn, WorkerSetStateReturn};
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "std")] {
@@ -20,6 +20,10 @@ cfg_if::cfg_if! {
 pub trait EdgeApiClient {
     type Error: error::Error;
 
+    /// Health check of the Edge API.
+    fn health(&self) -> impl future::Future<Output = Result<HealthReturn, Self::Error>> + Send;
+
+    /// Register worker with the Edge API.
     fn worker_register(
         &self,
         hostname: &str,
@@ -28,6 +32,7 @@ pub trait EdgeApiClient {
         sysinfo: &SysInfo,
     ) -> impl future::Future<Output = Result<WorkerRegistrationReturn, Self::Error>> + Send;
 
+    /// Update the state of the worker in the central site and thereby implicitly heartbeat.
     fn worker_set_state(
         &self,
         hostname: &str,
@@ -38,6 +43,7 @@ pub trait EdgeApiClient {
         maintenance_comments: Option<&str>,
     ) -> impl future::Future<Output = Result<WorkerSetStateReturn, Self::Error>> + Send;
 
+    /// Fetch a job to execute on the edge worker.
     fn jobs_fetch(
         &self,
         hostname: &str,
@@ -45,12 +51,20 @@ pub trait EdgeApiClient {
         free_concurrency: usize,
     ) -> impl future::Future<Output = Result<Option<EdgeJobFetched>, Self::Error>> + Send;
 
+    /// Set the state of a job.
     fn jobs_set_state(
         &self,
         key: &TaskInstanceKey,
         state: TaskInstanceState,
     ) -> impl future::Future<Output = Result<(), Self::Error>> + Send;
 
+    /// Elaborate the path and filename to expect from task execution.
+    fn logs_logfile_path(
+        &self,
+        key: &TaskInstanceKey,
+    ) -> impl future::Future<Output = Result<String, Self::Error>> + Send;
+
+    /// Push an incremental log chunk from Edge Worker to central site.
     fn logs_push(
         &self,
         key: &TaskInstanceKey,

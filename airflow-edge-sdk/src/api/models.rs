@@ -16,6 +16,12 @@ cfg_if::cfg_if! {
 
 /// The return class for the worker registration.
 #[derive(Debug, Deserialize)]
+pub struct HealthReturn {
+    pub status: String,
+}
+
+/// The return class for the worker registration.
+#[derive(Debug, Deserialize)]
 pub struct WorkerRegistrationReturn {
     /// Time of the last update of the worker.
     pub last_update: DateTime,
