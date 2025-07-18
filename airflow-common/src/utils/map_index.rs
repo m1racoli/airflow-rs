@@ -17,6 +17,16 @@ cfg_if::cfg_if! {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct MapIndex(Option<usize>);
 
+impl MapIndex {
+    pub fn some(index: usize) -> Self {
+        MapIndex(Some(index))
+    }
+
+    pub fn none() -> Self {
+        MapIndex(None)
+    }
+}
+
 impl Serialize for MapIndex {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
