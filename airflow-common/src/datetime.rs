@@ -11,7 +11,7 @@ pub trait TimeProvider {
 
 /// A time provider that uses the system clock to get the current time.
 #[cfg(feature = "now")]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct StdTimeProvider;
 
 #[cfg(feature = "now")]
