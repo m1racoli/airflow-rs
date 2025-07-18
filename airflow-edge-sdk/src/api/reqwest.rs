@@ -145,7 +145,7 @@ impl<J: JWTGenerator + Sync + Debug> EdgeApiClient for StdEdgeApiClient<J> {
         queues: Option<&Vec<String>>,
         sysinfo: &SysInfo,
     ) -> Result<super::WorkerRegistrationReturn, Self::Error> {
-        let path = format!("worker/{}", hostname);
+        let path = format!("worker/{hostname}");
         let body = WorkerStateBody {
             state,
             jobs_active: 0,
@@ -168,7 +168,7 @@ impl<J: JWTGenerator + Sync + Debug> EdgeApiClient for StdEdgeApiClient<J> {
         sysinfo: &SysInfo,
         maintenance_comments: Option<&str>,
     ) -> Result<super::WorkerSetStateReturn, Self::Error> {
-        let path = format!("worker/{}", hostname);
+        let path = format!("worker/{hostname}");
         let body = WorkerStateBody {
             state,
             jobs_active,
@@ -188,7 +188,7 @@ impl<J: JWTGenerator + Sync + Debug> EdgeApiClient for StdEdgeApiClient<J> {
         queues: Option<&Vec<String>>,
         free_concurrency: usize,
     ) -> Result<Option<super::EdgeJobFetched>, Self::Error> {
-        let path = format!("jobs/fetch/{}", hostname);
+        let path = format!("jobs/fetch/{hostname}");
         let body = WorkerQueuesBody {
             queues,
             free_concurrency,

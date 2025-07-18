@@ -40,7 +40,7 @@ impl<'de> Deserialize<'de> for MapIndex {
         } else if val >= 0 {
             Ok(MapIndex(Some(val as usize)))
         } else {
-            Err(D::Error::custom(format!("Invalid map index: {}", val)))
+            Err(D::Error::custom(format!("Invalid map index: {val}")))
         }
     }
 }
