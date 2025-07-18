@@ -19,7 +19,7 @@ cfg_if::cfg_if! {
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum StdEdgeApiError<J: JWTGenerator> {
+pub enum DefaultEdgeApiError<J: JWTGenerator> {
     #[error(transparent)]
     Reqwest(#[from] reqwest::Error),
     #[error(transparent)]
@@ -67,13 +67,13 @@ struct WorkerStateBody<'a> {
 
 /// Client for the Edge API using Reqwest.
 #[derive(Debug, Clone)]
-pub struct StdEdgeApiClient<J> {
+pub struct DefaultEdgeApiClient<J> {
     client: Client,
     base_url: String,
     jwt_generator: J,
 }
 
-impl<J: JWTGenerator> StdEdgeApiClient<J> {
+impl<J: JWTGenerator> DefaultEdgeApiClient<J> {
     pub fn new(base_url: &str, jwt_generator: J) -> Result<Self, reqwest::Error> {
         let mut headers = HeaderMap::new();
         headers.insert("accept", "application/json".parse().unwrap());
@@ -92,17 +92,17 @@ impl<J: JWTGenerator> StdEdgeApiClient<J> {
         })
     }
 
-    fn token(&self, path: &str) -> Result<String, StdEdgeApiError<J>> {
+    fn token(&self, path: &str) -> Result<String, DefaultEdgeApiError<J>> {
         self.jwt_generator
             .generate(path)
-            .map_err(|e| StdEdgeApiError::JWT(e))
+            .map_err(|e| DefaultEdgeApiError::JWT(e))
     }
 
     fn builder(
         &self,
         method: Method,
         path: &str,
-    ) -> Result<reqwest::RequestBuilder, StdEdgeApiError<J>> {
+    ) -> Result<reqwest::RequestBuilder, DefaultEdgeApiError<J>> {
         let token = self.token(path)?;
         let builder = self
             .client
@@ -111,24 +111,27 @@ impl<J: JWTGenerator> StdEdgeApiClient<J> {
         Ok(builder)
     }
 
-    async fn handle_response(&self, response: Response) -> Result<Response, StdEdgeApiError<J>> {
+    async fn handle_response(
+        &self,
+        response: Response,
+    ) -> Result<Response, DefaultEdgeApiError<J>> {
         match response.status() {
             StatusCode::OK => Ok(response),
-            StatusCode::NOT_FOUND => Err(StdEdgeApiError::EdgeNotEnabled),
+            StatusCode::NOT_FOUND => Err(DefaultEdgeApiError::EdgeNotEnabled),
             StatusCode::BAD_REQUEST => {
                 let body = response.text().await?;
-                Err(StdEdgeApiError::VersionMismatch(body))
+                Err(DefaultEdgeApiError::VersionMismatch(body))
             }
             code => {
                 let body = response.text().await.ok();
-                Err(StdEdgeApiError::Http(code, body))
+                Err(DefaultEdgeApiError::Http(code, body))
             }
         }
     }
 }
 
-impl<J: JWTGenerator + Sync + Debug> EdgeApiClient for StdEdgeApiClient<J> {
-    type Error = StdEdgeApiError<J>;
+impl<J: JWTGenerator + Sync + Debug> EdgeApiClient for DefaultEdgeApiClient<J> {
+    type Error = DefaultEdgeApiError<J>;
 
     async fn health(&self) -> Result<super::HealthReturn, Self::Error> {
         let path = "health";
@@ -303,7 +306,7 @@ mod tests {
     #[tokio::test]
     async fn test_health() {
         let server = MockServer::start_async().await;
-        let client = StdEdgeApiClient::new(&server.base_url(), mock_jwt_generator()).unwrap();
+        let client = DefaultEdgeApiClient::new(&server.base_url(), mock_jwt_generator()).unwrap();
 
         let http_mock = server
             .mock_async(|when, then| {
@@ -325,7 +328,7 @@ mod tests {
     #[tokio::test]
     async fn test_worker_register() {
         let server = MockServer::start_async().await;
-        let client = StdEdgeApiClient::new(&server.base_url(), mock_jwt_generator()).unwrap();
+        let client = DefaultEdgeApiClient::new(&server.base_url(), mock_jwt_generator()).unwrap();
 
         let http_mock = server
             .mock_async(|when, then| {
@@ -351,7 +354,7 @@ mod tests {
     #[tokio::test]
     async fn test_worker_set_state() {
         let server = MockServer::start_async().await;
-        let client = StdEdgeApiClient::new(&server.base_url(), mock_jwt_generator()).unwrap();
+        let client = DefaultEdgeApiClient::new(&server.base_url(), mock_jwt_generator()).unwrap();
 
         let http_mock = server
             .mock_async(|when, then| {
@@ -386,7 +389,7 @@ mod tests {
     #[tokio::test]
     async fn test_jobs_fetch() {
         let server = MockServer::start_async().await;
-        let client = StdEdgeApiClient::new(&server.base_url(), mock_jwt_generator()).unwrap();
+        let client = DefaultEdgeApiClient::new(&server.base_url(), mock_jwt_generator()).unwrap();
 
         let http_mock = server
             .mock_async(|when, then| {
@@ -443,7 +446,7 @@ mod tests {
     #[tokio::test]
     async fn test_jobs_set_state() {
         let server = MockServer::start_async().await;
-        let client = StdEdgeApiClient::new(&server.base_url(), mock_jwt_generator()).unwrap();
+        let client = DefaultEdgeApiClient::new(&server.base_url(), mock_jwt_generator()).unwrap();
 
         let http_mock = server
             .mock_async(|when, then| {
@@ -469,7 +472,7 @@ mod tests {
     #[tokio::test]
     async fn test_logs_logfile_path() {
         let server = MockServer::start_async().await;
-        let client = StdEdgeApiClient::new(&server.base_url(), mock_jwt_generator()).unwrap();
+        let client = DefaultEdgeApiClient::new(&server.base_url(), mock_jwt_generator()).unwrap();
 
         let http_mock = server
             .mock_async(|when, then| {
@@ -494,7 +497,7 @@ mod tests {
     #[tokio::test]
     async fn test_logs_push() {
         let server = MockServer::start_async().await;
-        let client = StdEdgeApiClient::new(&server.base_url(), mock_jwt_generator()).unwrap();
+        let client = DefaultEdgeApiClient::new(&server.base_url(), mock_jwt_generator()).unwrap();
 
         let http_mock = server
             .mock_async(|when, then| {
@@ -518,7 +521,7 @@ mod tests {
     #[tokio::test]
     async fn test_not_found() {
         let server = MockServer::start_async().await;
-        let client = StdEdgeApiClient::new(&server.base_url(), mock_jwt_generator()).unwrap();
+        let client = DefaultEdgeApiClient::new(&server.base_url(), mock_jwt_generator()).unwrap();
 
         let http_mock = server
             .mock_async(|when, then| {
@@ -536,14 +539,14 @@ mod tests {
         assert!(result.is_err());
         assert!(matches!(
             result.unwrap_err(),
-            StdEdgeApiError::EdgeNotEnabled
+            DefaultEdgeApiError::EdgeNotEnabled
         ));
     }
 
     #[tokio::test]
     async fn test_bad_request() {
         let server = MockServer::start_async().await;
-        let client = StdEdgeApiClient::new(&server.base_url(), mock_jwt_generator()).unwrap();
+        let client = DefaultEdgeApiClient::new(&server.base_url(), mock_jwt_generator()).unwrap();
 
         let http_mock = server
             .mock_async(|when, then| {
@@ -560,7 +563,7 @@ mod tests {
 
         assert!(result.is_err());
         match result {
-            Err(StdEdgeApiError::VersionMismatch(msg)) => {
+            Err(DefaultEdgeApiError::VersionMismatch(msg)) => {
                 assert_eq!(msg, "Wrong version!");
             }
             _ => panic!("Expected VersionMismatch error"),
@@ -570,7 +573,7 @@ mod tests {
     #[tokio::test]
     async fn test_http_error() {
         let server = MockServer::start_async().await;
-        let client = StdEdgeApiClient::new(&server.base_url(), mock_jwt_generator()).unwrap();
+        let client = DefaultEdgeApiClient::new(&server.base_url(), mock_jwt_generator()).unwrap();
 
         let http_mock = server
             .mock_async(|when, then| {
@@ -587,7 +590,7 @@ mod tests {
 
         assert!(result.is_err());
         match result {
-            Err(StdEdgeApiError::Http(code, msg)) => {
+            Err(DefaultEdgeApiError::Http(code, msg)) => {
                 assert_eq!(code, StatusCode::FORBIDDEN);
                 assert_eq!(msg, Some("Not authorized!".to_string()));
             }
