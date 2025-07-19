@@ -3,6 +3,7 @@ mod state;
 mod types;
 
 pub use map_index::MapIndex;
+pub use map_index::MapIndexConversionError;
 pub use state::IntermediateTIState;
 pub use state::TaskInstanceState;
 pub use state::TerminalTIState;

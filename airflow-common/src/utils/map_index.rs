@@ -9,6 +9,21 @@ cfg_if::cfg_if! {
     }
 }
 
+#[derive(Debug)]
+pub struct MapIndexConversionError {
+    value: i64,
+}
+
+impl fmt::Display for MapIndexConversionError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Invalid map index {} - must be -1 or a non-negative integer",
+            self.value
+        )
+    }
+}
+
 /// Helper type for serializing and deserializing map indexes.
 ///
 /// Historically in Airflow, map indexes were represented as integers, with -1
@@ -79,6 +94,27 @@ impl From<Option<usize>> for MapIndex {
 impl From<usize> for MapIndex {
     fn from(map_index: usize) -> Self {
         MapIndex(Some(map_index))
+    }
+}
+
+impl TryFrom<i64> for MapIndex {
+    type Error = MapIndexConversionError;
+
+    fn try_from(map_index: i64) -> Result<Self, Self::Error> {
+        match map_index {
+            -1 => Ok(MapIndex(None)),
+            v if v >= 0 => Ok(MapIndex(Some(v as usize))),
+            _ => Err(MapIndexConversionError { value: map_index }),
+        }
+    }
+}
+
+impl From<MapIndex> for i64 {
+    fn from(map_index: MapIndex) -> Self {
+        match map_index.0 {
+            Some(index) => index as i64,
+            None => -1,
+        }
     }
 }
 

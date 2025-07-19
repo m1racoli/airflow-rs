@@ -438,7 +438,7 @@ mod tests {
         assert_eq!(result.dag_id, "mydag");
         assert_eq!(result.task_id, "mytask");
         assert_eq!(result.run_id, "myrun");
-        assert_eq!(result.map_index, MapIndex::from(3));
+        assert_eq!(result.map_index, MapIndex::some(3));
         assert_eq!(result.try_number, 2);
         assert_eq!(result.concurrency_slots, 4);
     }
