@@ -87,8 +87,9 @@ pub struct TaskInstance {
     queue: String,
     priority_weight: u64,
 
-    parent_context_carrier: Option<ContextCarrier>,
-    context_carrier: Option<ContextCarrier>,
+    // TODO tracing info
+    // parent_context_carrier: Option<ContextCarrier>,
+    // context_carrier: Option<ContextCarrier>,
     queued_dttm: Option<DateTime>,
 }
 
