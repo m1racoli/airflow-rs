@@ -1,10 +1,10 @@
 use core::fmt::Debug;
 
-use airflow_common::{api::JWTGenerator, datetime::DateTime};
+use crate::models::{EdgeWorkerState, SysInfo};
+use airflow_common::datetime::DateTime;
+use airflow_common::prelude::*;
 use reqwest::{Client, Method, Response, StatusCode, header::HeaderMap};
 use serde::Serialize;
-
-use crate::models::{EdgeWorkerState, SysInfo};
 
 use super::EdgeApiClient;
 
