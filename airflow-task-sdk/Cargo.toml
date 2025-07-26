@@ -8,6 +8,7 @@ publish = false
 [dependencies]
 airflow-common = { path = "../airflow-common", default-features = false }
 cfg-if = "1"
+serde = { version = "1", default-features = false, features = ["derive", "alloc"] }
 
 [features]
 default = ["std"]
