@@ -9,6 +9,6 @@ cfg_if::cfg_if! {
 use crate::definitions::Dag;
 
 // A trait representing a collection of DAGs.
-pub trait DagBag: fmt::Debug {
+pub trait DagBag: fmt::Debug + Send {
     fn get_dag(&self, dag_id: &str) -> Option<impl Dag>;
 }

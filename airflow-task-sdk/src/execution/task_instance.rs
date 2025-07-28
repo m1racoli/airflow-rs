@@ -34,8 +34,8 @@ impl RuntimeTaskInstance {
     }
 }
 
-impl From<StartupDetails<'_>> for RuntimeTaskInstance {
-    fn from(details: StartupDetails<'_>) -> Self {
+impl From<StartupDetails> for RuntimeTaskInstance {
+    fn from(details: StartupDetails) -> Self {
         RuntimeTaskInstance {
             id: details.ti.id(),
             task_id: details.ti.task_id().to_string(),

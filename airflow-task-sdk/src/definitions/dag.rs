@@ -9,6 +9,6 @@ cfg_if::cfg_if! {
 use crate::definitions::Task;
 
 /// A trait representing a DAG (Directed Acyclic Graph) that contains tasks.
-pub trait Dag: fmt::Debug {
+pub trait Dag: fmt::Debug + Send {
     fn get_task(&self, task_id: &str) -> Option<impl Task>;
 }

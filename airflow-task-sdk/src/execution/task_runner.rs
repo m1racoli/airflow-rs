@@ -45,8 +45,8 @@ async fn finalize(
 
 /// perform the actual task execution with the given startup details
 pub async fn main<D: DagBag>(
-    what: StartupDetails<'_>,
-    dag_bag: &D,
+    what: StartupDetails,
+    dag_bag: D,
 ) -> Result<ExecutionTIState, ExecutionError> {
     let mut ti = RuntimeTaskInstance::from(what);
     let context = ti.get_template_context();
