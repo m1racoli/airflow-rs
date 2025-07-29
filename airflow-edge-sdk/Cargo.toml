@@ -19,6 +19,5 @@ tokio = { version = "1", features = ["macros"] }
 
 [features]
 default = ["reqwest", "std"]
-reqwest = ["dep:reqwest", "thiserror"]
+reqwest = ["dep:reqwest", "dep:thiserror"]
 std = ["airflow-common/std", "serde/std", "thiserror/std"]
-thiserror = ["dep:thiserror"]
