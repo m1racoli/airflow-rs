@@ -12,11 +12,11 @@ pub use models::HealthReturn;
 pub use models::WorkerRegistrationReturn;
 pub use models::WorkerSetStateReturn;
 #[cfg(feature = "reqwest")]
-pub use reqwest::DefaultEdgeApiClient;
-#[cfg(feature = "reqwest")]
 pub use reqwest::DefaultEdgeApiError;
+#[cfg(feature = "reqwest")]
+pub use reqwest::ReqwestEdgeApiClient;
 
 #[cfg(feature = "reqwest")]
-pub type StdEdgeApiClient = reqwest::DefaultEdgeApiClient<StdJWTGenerator>;
+pub type StdEdgeApiClient = reqwest::ReqwestEdgeApiClient<StdJWTGenerator>;
 #[cfg(feature = "reqwest")]
 pub type StdEdgeApiError = reqwest::DefaultEdgeApiError<StdJWTGenerator>;
