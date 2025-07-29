@@ -150,8 +150,8 @@ mod tests {
     use serde::Deserialize;
 
     use super::*;
-    use crate::datetime::DateTime;
     use crate::datetime::MockTimeProvider;
+    use crate::datetime::UtcDateTime;
 
     static METHOD: &str = "/test123";
     static SECRET: &str = "test123";
@@ -176,7 +176,7 @@ mod tests {
     #[test]
     fn test_default_jwt_generator() {
         let key = SecretString::from(SECRET);
-        let now = DateTime::from_timestamp(TS, 0).unwrap();
+        let now = UtcDateTime::from_timestamp(TS, 0).unwrap();
         let time_provider = MockTimeProvider::new(now);
 
         let generator = DefaultJWTGenerator::new(key, AUDIENCE, time_provider).with_issuer(ISSUER);
@@ -203,7 +203,7 @@ mod tests {
     #[test]
     fn test_default_jwt_generator() {
         let key = SecretString::from(SECRET);
-        let now = DateTime::from_timestamp(TS, 0).unwrap();
+        let now = UtcDateTime::from_timestamp(TS, 0).unwrap();
         let time_provider = MockTimeProvider::new(now);
 
         let generator =

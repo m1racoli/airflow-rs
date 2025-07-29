@@ -1,4 +1,4 @@
-use airflow_common::{datetime::DateTime, models::TaskInstanceKey, utils::TaskInstanceState};
+use airflow_common::{datetime::UtcDateTime, models::TaskInstanceKey, utils::TaskInstanceState};
 
 use crate::models::{EdgeWorkerState, SysInfo};
 
@@ -68,7 +68,7 @@ pub trait EdgeApiClient {
     fn logs_push(
         &self,
         key: &TaskInstanceKey,
-        log_chunk_time: &DateTime,
+        log_chunk_time: &UtcDateTime,
         log_chunk_data: &str,
     ) -> impl future::Future<Output = Result<(), Self::Error>> + Send;
 }

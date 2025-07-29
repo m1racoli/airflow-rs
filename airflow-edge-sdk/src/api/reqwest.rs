@@ -1,7 +1,7 @@
 use core::fmt::Debug;
 
 use crate::models::{EdgeWorkerState, SysInfo};
-use airflow_common::datetime::DateTime;
+use airflow_common::datetime::UtcDateTime;
 use airflow_common::prelude::*;
 use reqwest::{Client, Method, Response, StatusCode, header::HeaderMap};
 use serde::Serialize;
@@ -36,7 +36,7 @@ pub enum DefaultEdgeApiError<J: JWTGenerator> {
 #[derive(Debug, Serialize)]
 struct PushLogsBody<'a> {
     /// Time of the log chunk at point of sending.
-    log_chunk_time: &'a DateTime,
+    log_chunk_time: &'a UtcDateTime,
     /// Log chunk data as incremental log text.
     log_chunk_data: &'a str,
 }
@@ -244,7 +244,7 @@ impl<J: JWTGenerator + Sync + Debug> EdgeApiClient for DefaultEdgeApiClient<J> {
     async fn logs_push(
         &self,
         key: &airflow_common::models::TaskInstanceKey,
-        log_chunk_time: &DateTime,
+        log_chunk_time: &UtcDateTime,
         log_chunk_data: &str,
     ) -> Result<(), Self::Error> {
         let path = format!(
@@ -294,9 +294,9 @@ mod tests {
         TaskInstanceKey::new("dag_id", "task_id", "run_id", 1, None.into())
     }
 
-    fn datetime() -> DateTime {
+    fn datetime() -> UtcDateTime {
         // 2019-10-12T07:20:50.52Z
-        DateTime::from_timestamp(1570864850, 0).unwrap()
+        UtcDateTime::from_timestamp(1570864850, 0).unwrap()
     }
 
     fn queues() -> Vec<String> {

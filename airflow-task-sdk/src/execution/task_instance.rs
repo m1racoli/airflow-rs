@@ -1,5 +1,5 @@
 use airflow_common::{
-    datetime::DateTime,
+    datetime::UtcDateTime,
     executors::UniqueTaskInstanceId,
     models::TaskInstanceLike,
     utils::{MapIndex, TaskInstanceState},
@@ -15,10 +15,10 @@ pub struct RuntimeTaskInstance {
     pub run_id: String,
     pub try_number: usize,
     pub map_index: MapIndex,
-    pub queued_dttm: Option<DateTime>,
+    pub queued_dttm: Option<UtcDateTime>,
     pub ti_context: TIRunContext,
     pub max_tries: usize,
-    pub start_date: DateTime,
+    pub start_date: UtcDateTime,
     pub state: TaskInstanceState,
 }
 

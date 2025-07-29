@@ -1,12 +1,12 @@
 /// A UTC date time to be used in Airflow.
-pub type DateTime = chrono::DateTime<chrono::Utc>;
+pub type UtcDateTime = chrono::DateTime<chrono::Utc>;
 
 /// The minimum possible DateTime.
-pub const MIN_UTC: DateTime = chrono::DateTime::<chrono::Utc>::MIN_UTC;
+pub const MIN_UTC: UtcDateTime = chrono::DateTime::<chrono::Utc>::MIN_UTC;
 
 /// A trait for providing the current time as a [DateTime].
 pub trait TimeProvider {
-    fn now(&self) -> DateTime;
+    fn now(&self) -> UtcDateTime;
 }
 
 /// A time provider that uses the system clock to get the current time.
@@ -16,7 +16,7 @@ pub struct StdTimeProvider;
 
 #[cfg(feature = "now")]
 impl TimeProvider for StdTimeProvider {
-    fn now(&self) -> DateTime {
+    fn now(&self) -> UtcDateTime {
         chrono::Utc::now()
     }
 }
@@ -24,17 +24,17 @@ impl TimeProvider for StdTimeProvider {
 /// A mock time provider that returns a fixed time.
 #[derive(Debug, Clone, Copy)]
 pub struct MockTimeProvider {
-    now: DateTime,
+    now: UtcDateTime,
 }
 
 impl MockTimeProvider {
-    pub fn new(now: DateTime) -> Self {
+    pub fn new(now: UtcDateTime) -> Self {
         MockTimeProvider { now }
     }
 }
 
 impl TimeProvider for MockTimeProvider {
-    fn now(&self) -> DateTime {
+    fn now(&self) -> UtcDateTime {
         self.now
     }
 }

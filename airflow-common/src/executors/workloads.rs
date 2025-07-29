@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    datetime::DateTime,
+    datetime::UtcDateTime,
     models::TaskInstanceLike,
     utils::{MapIndex, SecretString},
 };
@@ -90,7 +90,7 @@ pub struct TaskInstance {
     // TODO tracing info
     // parent_context_carrier: Option<ContextCarrier>,
     // context_carrier: Option<ContextCarrier>,
-    queued_dttm: Option<DateTime>,
+    queued_dttm: Option<UtcDateTime>,
 }
 
 impl TaskInstance {
@@ -110,7 +110,7 @@ impl TaskInstance {
         self.priority_weight
     }
 
-    pub fn queued_dttm(&self) -> Option<DateTime> {
+    pub fn queued_dttm(&self) -> Option<UtcDateTime> {
         self.queued_dttm
     }
 }

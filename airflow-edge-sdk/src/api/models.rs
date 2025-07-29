@@ -1,5 +1,5 @@
 use airflow_common::{
-    datetime::DateTime, executors::ExecuteTask, models::TaskInstanceLike, utils::MapIndex,
+    datetime::UtcDateTime, executors::ExecuteTask, models::TaskInstanceLike, utils::MapIndex,
 };
 use serde::Deserialize;
 
@@ -24,7 +24,7 @@ pub struct HealthReturn {
 #[derive(Debug, Deserialize)]
 pub struct WorkerRegistrationReturn {
     /// Time of the last update of the worker.
-    pub last_update: DateTime,
+    pub last_update: UtcDateTime,
 }
 
 /// The return class for the worker set state.
