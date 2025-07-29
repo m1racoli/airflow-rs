@@ -19,7 +19,7 @@ cfg_if::cfg_if! {
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum DefaultEdgeApiError<J: JWTGenerator> {
+pub enum ReqwestEdgeApiError<J: JWTGenerator> {
     #[error(transparent)]
     Reqwest(#[from] reqwest::Error),
     #[error(transparent)]
@@ -92,17 +92,17 @@ impl<J: JWTGenerator> ReqwestEdgeApiClient<J> {
         })
     }
 
-    fn token(&self, path: &str) -> Result<String, DefaultEdgeApiError<J>> {
+    fn token(&self, path: &str) -> Result<String, ReqwestEdgeApiError<J>> {
         self.jwt_generator
             .generate(path)
-            .map_err(|e| DefaultEdgeApiError::JWT(e))
+            .map_err(|e| ReqwestEdgeApiError::JWT(e))
     }
 
     fn builder(
         &self,
         method: Method,
         path: &str,
-    ) -> Result<reqwest::RequestBuilder, DefaultEdgeApiError<J>> {
+    ) -> Result<reqwest::RequestBuilder, ReqwestEdgeApiError<J>> {
         let token = self.token(path)?;
         let builder = self
             .client
@@ -114,24 +114,24 @@ impl<J: JWTGenerator> ReqwestEdgeApiClient<J> {
     async fn handle_response(
         &self,
         response: Response,
-    ) -> Result<Response, DefaultEdgeApiError<J>> {
+    ) -> Result<Response, ReqwestEdgeApiError<J>> {
         match response.status() {
             StatusCode::OK => Ok(response),
-            StatusCode::NOT_FOUND => Err(DefaultEdgeApiError::EdgeNotEnabled),
+            StatusCode::NOT_FOUND => Err(ReqwestEdgeApiError::EdgeNotEnabled),
             StatusCode::BAD_REQUEST => {
                 let body = response.text().await?;
-                Err(DefaultEdgeApiError::VersionMismatch(body))
+                Err(ReqwestEdgeApiError::VersionMismatch(body))
             }
             code => {
                 let body = response.text().await.ok();
-                Err(DefaultEdgeApiError::Http(code, body))
+                Err(ReqwestEdgeApiError::Http(code, body))
             }
         }
     }
 }
 
 impl<J: JWTGenerator + Sync + Debug> EdgeApiClient for ReqwestEdgeApiClient<J> {
-    type Error = DefaultEdgeApiError<J>;
+    type Error = ReqwestEdgeApiError<J>;
 
     async fn health(&self) -> Result<super::HealthReturn, Self::Error> {
         let path = "health";
@@ -539,7 +539,7 @@ mod tests {
         assert!(result.is_err());
         assert!(matches!(
             result.unwrap_err(),
-            DefaultEdgeApiError::EdgeNotEnabled
+            ReqwestEdgeApiError::EdgeNotEnabled
         ));
     }
 
@@ -563,7 +563,7 @@ mod tests {
 
         assert!(result.is_err());
         match result {
-            Err(DefaultEdgeApiError::VersionMismatch(msg)) => {
+            Err(ReqwestEdgeApiError::VersionMismatch(msg)) => {
                 assert_eq!(msg, "Wrong version!");
             }
             _ => panic!("Expected VersionMismatch error"),
@@ -590,7 +590,7 @@ mod tests {
 
         assert!(result.is_err());
         match result {
-            Err(DefaultEdgeApiError::Http(code, msg)) => {
+            Err(ReqwestEdgeApiError::Http(code, msg)) => {
                 assert_eq!(code, StatusCode::FORBIDDEN);
                 assert_eq!(msg, Some("Not authorized!".to_string()));
             }
