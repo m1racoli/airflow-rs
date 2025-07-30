@@ -10,7 +10,7 @@ use airflow_common::utils::{TaskInstanceState, TerminalTIStateNonSuccess};
 
 /// Possible states of a task instance as a result of task execution.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ExecutionTIState {
+pub enum ExecutionResultTIState {
     /// Task vanished from DAG before it ran
     Removed,
     /// Task completed
@@ -27,35 +27,35 @@ pub enum ExecutionTIState {
     Deferred,
 }
 
-impl From<ExecutionTIState> for TaskInstanceState {
-    fn from(state: ExecutionTIState) -> Self {
+impl From<ExecutionResultTIState> for TaskInstanceState {
+    fn from(state: ExecutionResultTIState) -> Self {
         match state {
-            ExecutionTIState::Removed => TaskInstanceState::Removed,
-            ExecutionTIState::Success => TaskInstanceState::Success,
-            ExecutionTIState::Failed => TaskInstanceState::Failed,
-            ExecutionTIState::UpForRetry => TaskInstanceState::UpForRetry,
-            ExecutionTIState::UpForReschedule => TaskInstanceState::UpForReschedule,
-            ExecutionTIState::Skipped => TaskInstanceState::Skipped,
-            ExecutionTIState::Deferred => TaskInstanceState::Deferred,
+            ExecutionResultTIState::Removed => TaskInstanceState::Removed,
+            ExecutionResultTIState::Success => TaskInstanceState::Success,
+            ExecutionResultTIState::Failed => TaskInstanceState::Failed,
+            ExecutionResultTIState::UpForRetry => TaskInstanceState::UpForRetry,
+            ExecutionResultTIState::UpForReschedule => TaskInstanceState::UpForReschedule,
+            ExecutionResultTIState::Skipped => TaskInstanceState::Skipped,
+            ExecutionResultTIState::Deferred => TaskInstanceState::Deferred,
         }
     }
 }
 
-impl From<ExecutionTIState> for Option<TerminalTIStateNonSuccess> {
-    fn from(state: ExecutionTIState) -> Self {
+impl From<ExecutionResultTIState> for Option<TerminalTIStateNonSuccess> {
+    fn from(state: ExecutionResultTIState) -> Self {
         match state {
-            ExecutionTIState::Removed => Some(TerminalTIStateNonSuccess::Removed),
-            ExecutionTIState::Success => None,
-            ExecutionTIState::Failed => Some(TerminalTIStateNonSuccess::Failed),
-            ExecutionTIState::UpForRetry => None,
-            ExecutionTIState::UpForReschedule => None,
-            ExecutionTIState::Skipped => Some(TerminalTIStateNonSuccess::Skipped),
-            ExecutionTIState::Deferred => None,
+            ExecutionResultTIState::Removed => Some(TerminalTIStateNonSuccess::Removed),
+            ExecutionResultTIState::Success => None,
+            ExecutionResultTIState::Failed => Some(TerminalTIStateNonSuccess::Failed),
+            ExecutionResultTIState::UpForRetry => None,
+            ExecutionResultTIState::UpForReschedule => None,
+            ExecutionResultTIState::Skipped => Some(TerminalTIStateNonSuccess::Skipped),
+            ExecutionResultTIState::Deferred => None,
         }
     }
 }
 
-impl fmt::Display for ExecutionTIState {
+impl fmt::Display for ExecutionResultTIState {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         TaskInstanceState::from(*self).fmt(f)
     }

@@ -1,6 +1,6 @@
 use crate::{
     definitions::{Context, Dag, DagBag, Task, TaskError},
-    execution::{ExecutionTIState, RuntimeTaskInstance, StartupDetails},
+    execution::{ExecutionResultTIState, RuntimeTaskInstance, StartupDetails},
 };
 
 /// An error which can occur during task execution outside the task itself.
@@ -16,11 +16,11 @@ async fn run(
     mut task: impl Task,
     ti: &mut RuntimeTaskInstance,
     context: &Context,
-) -> (ExecutionTIState, Option<TaskError>) {
+) -> (ExecutionResultTIState, Option<TaskError>) {
     // TODO call on_execute_callback
     let (state, error) = match task.execute(context).await {
-        Ok(_result) => (ExecutionTIState::Success, None),
-        Err(error) => (ExecutionTIState::Failed, Some(error)),
+        Ok(_result) => (ExecutionResultTIState::Success, None),
+        Err(error) => (ExecutionResultTIState::Failed, Some(error)),
     };
     ti.state = state.into();
     (state, error)
@@ -28,7 +28,7 @@ async fn run(
 
 async fn finalize(
     ti: &RuntimeTaskInstance,
-    state: ExecutionTIState,
+    state: ExecutionResultTIState,
     context: &Context,
     error: Option<TaskError>,
 ) {
@@ -47,7 +47,7 @@ async fn finalize(
 pub async fn main<D: DagBag>(
     what: StartupDetails,
     dag_bag: D,
-) -> Result<ExecutionTIState, ExecutionError> {
+) -> Result<ExecutionResultTIState, ExecutionError> {
     let mut ti = RuntimeTaskInstance::from(what);
     let context = ti.get_template_context();
 
