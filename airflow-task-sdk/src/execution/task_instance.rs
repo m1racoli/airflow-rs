@@ -1,3 +1,12 @@
+cfg_if::cfg_if! {
+    if #[cfg(feature = "std")] {
+    } else {
+        extern crate alloc;
+        use alloc::string::String;
+        use alloc::string::ToString;
+    }
+}
+
 use airflow_common::{
     datetime::UtcDateTime,
     executors::UniqueTaskInstanceId,

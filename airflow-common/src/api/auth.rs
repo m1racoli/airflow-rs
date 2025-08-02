@@ -8,13 +8,13 @@ use crate::utils::SecretString;
 cfg_if::cfg_if! {
     if #[cfg(feature = "std")] {
         use std::error;
-        use std::io;
+        use std::fmt;
     } else {
         extern crate alloc;
         use alloc::string::String;
         use alloc::string::ToString;
         use core::error;
-        use core::io;
+        use core::fmt;
     }
 }
 
@@ -138,7 +138,7 @@ impl MockJWTGenerator {
 }
 
 impl JWTGenerator for MockJWTGenerator {
-    type Error = io::Error;
+    type Error = fmt::Error;
 
     fn generate(&self, method: &str) -> Result<String, Self::Error> {
         Ok(format!("{}:{}", method, self.secret))

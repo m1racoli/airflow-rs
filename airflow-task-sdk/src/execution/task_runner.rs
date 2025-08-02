@@ -1,3 +1,11 @@
+cfg_if::cfg_if! {
+    if #[cfg(feature = "std")] {
+    } else {
+        extern crate alloc;
+        use alloc::string::String;
+    }
+}
+
 use crate::{
     definitions::{Context, Dag, DagBag, Task, TaskError},
     execution::{ExecutionResultTIState, RuntimeTaskInstance, StartupDetails},
