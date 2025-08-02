@@ -9,10 +9,13 @@ publish = false
 [dependencies]
 cfg-if = "1"
 chrono = { version = "0.4", default-features = false, features = ["serde", "alloc"] }
+serde = { version = "1", default-features = false, features = ["derive", "alloc"] }
+thiserror = { version = "2", default-features = false }
+uuid = { version = "1", default-features = false, features = ["serde"] }
+
+# Optional dependencies
 jsonwebtoken = { version = "9", default-features = false, optional = true }
 jwt-compact = { version = "0.8", default-features = false, optional = true }
-serde = { version = "1", default-features = false, features = ["derive", "alloc"] }
-uuid = { version = "1", default-features = false, features = ["serde"] }
 
 [dev-dependencies]
 serde_json = { version = "1", default-features = false, features = ["alloc"] }
@@ -22,4 +25,4 @@ default = ["jsonwebtoken", "now", "std"]
 jsonwebtoken = ["dep:jsonwebtoken"]
 jwt-compact = ["dep:jwt-compact"]
 now = ["chrono/now"]
-std = ["chrono/std", "serde/std", "serde_json/std", "uuid/std"]
+std = ["chrono/std", "serde/std", "serde_json/std", "thiserror/std", "uuid/std"]
