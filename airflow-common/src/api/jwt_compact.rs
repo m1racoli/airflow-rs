@@ -12,7 +12,7 @@ use core::fmt;
 use jwt_compact::AlgorithmExt;
 use serde::Serialize;
 
-use crate::{api::JWTGenerator, prelude::TimeProvider, utils::SecretString};
+use crate::{api::JWTGenerator, datetime::TimeProvider, utils::SecretString};
 
 #[derive(Debug, Serialize)]
 struct Claims<'i, 'a, 'm> {

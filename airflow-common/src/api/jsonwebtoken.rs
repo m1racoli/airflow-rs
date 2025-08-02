@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::{api::JWTGenerator, prelude::TimeProvider, utils::SecretString};
+use crate::{api::JWTGenerator, datetime::TimeProvider, utils::SecretString};
 
 #[derive(Debug, Serialize)]
 struct Claims<'i, 'a, 'm> {
