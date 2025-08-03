@@ -1,13 +1,3 @@
-use core::fmt::Debug;
-
-use crate::models::{EdgeWorkerState, SysInfo};
-use airflow_common::datetime::UtcDateTime;
-use airflow_common::prelude::*;
-use reqwest::{Client, Method, Response, StatusCode, header::HeaderMap};
-use serde::Serialize;
-
-use super::EdgeApiClient;
-
 cfg_if::cfg_if! {
     if #[cfg(feature = "std")] {
     } else {
@@ -17,6 +7,16 @@ cfg_if::cfg_if! {
         use alloc::vec::Vec;
     }
 }
+
+use core::fmt::Debug;
+
+use crate::models::{EdgeWorkerState, SysInfo};
+use airflow_common::datetime::UtcDateTime;
+use airflow_common::prelude::*;
+use reqwest::{Client, Method, Response, StatusCode, header::HeaderMap};
+use serde::Serialize;
+
+use super::EdgeApiClient;
 
 #[derive(thiserror::Error, Debug)]
 pub enum ReqwestEdgeApiError<J: JWTGenerator> {

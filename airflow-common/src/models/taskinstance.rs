@@ -1,7 +1,3 @@
-use serde::{Deserialize, Serialize};
-
-use crate::utils::MapIndex;
-
 cfg_if::cfg_if! {
     if #[cfg(feature = "std")] {
         use std::fmt;
@@ -12,6 +8,10 @@ cfg_if::cfg_if! {
         use core::fmt;
     }
 }
+
+use serde::{Deserialize, Serialize};
+
+use crate::utils::MapIndex;
 
 /// Key used to identify a task instance.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

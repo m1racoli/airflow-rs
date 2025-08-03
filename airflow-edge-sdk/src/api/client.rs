@@ -1,9 +1,3 @@
-use airflow_common::{datetime::UtcDateTime, models::TaskInstanceKey, utils::TaskInstanceState};
-
-use crate::models::{EdgeWorkerState, SysInfo};
-
-use super::{EdgeJobFetched, HealthReturn, WorkerRegistrationReturn, WorkerSetStateReturn};
-
 cfg_if::cfg_if! {
     if #[cfg(feature = "std")] {
         use std::error;
@@ -16,6 +10,12 @@ cfg_if::cfg_if! {
         use core::future;
     }
 }
+
+use airflow_common::{datetime::UtcDateTime, models::TaskInstanceKey, utils::TaskInstanceState};
+
+use crate::models::{EdgeWorkerState, SysInfo};
+
+use super::{EdgeJobFetched, HealthReturn, WorkerRegistrationReturn, WorkerSetStateReturn};
 
 pub trait EdgeApiClient {
     type Error: error::Error;

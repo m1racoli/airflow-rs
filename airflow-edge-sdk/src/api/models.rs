@@ -1,10 +1,3 @@
-use airflow_common::{
-    datetime::UtcDateTime, executors::ExecuteTask, models::TaskInstanceLike, utils::MapIndex,
-};
-use serde::Deserialize;
-
-use crate::models::EdgeWorkerState;
-
 cfg_if::cfg_if! {
     if #[cfg(feature = "std")] {
     } else {
@@ -13,6 +6,13 @@ cfg_if::cfg_if! {
         use alloc::vec::Vec;
     }
 }
+
+use airflow_common::{
+    datetime::UtcDateTime, executors::ExecuteTask, models::TaskInstanceLike, utils::MapIndex,
+};
+use serde::Deserialize;
+
+use crate::models::EdgeWorkerState;
 
 /// The return class for the worker registration.
 #[derive(Debug, Deserialize)]

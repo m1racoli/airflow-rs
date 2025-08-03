@@ -1,6 +1,3 @@
-use serde::de::Error;
-use serde::{Deserialize, Serialize};
-
 cfg_if::cfg_if! {
     if #[cfg(feature = "std")] {
         use std::fmt;
@@ -8,6 +5,9 @@ cfg_if::cfg_if! {
         use core::fmt;
     }
 }
+
+use serde::de::Error;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug)]
 pub struct MapIndexConversionError {

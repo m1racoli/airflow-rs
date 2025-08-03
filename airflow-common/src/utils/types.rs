@@ -1,5 +1,3 @@
-use serde::{Deserialize, Serialize};
-
 cfg_if::cfg_if! {
     if #[cfg(feature = "std")] {
         use std::fmt;
@@ -10,6 +8,8 @@ cfg_if::cfg_if! {
         use core::fmt;
     }
 }
+
+use serde::{Deserialize, Serialize};
 
 /// All DagRun types.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

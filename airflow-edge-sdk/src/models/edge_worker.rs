@@ -1,5 +1,3 @@
-use serde::{Deserialize, Serialize};
-
 cfg_if::cfg_if! {
     if #[cfg(feature = "std")] {
     } else {
@@ -7,6 +5,8 @@ cfg_if::cfg_if! {
         use alloc::string::String;
     }
 }
+
+use serde::{Deserialize, Serialize};
 
 /// Status of a Edge Worker instance.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
