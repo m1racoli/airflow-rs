@@ -8,8 +8,10 @@ publish = false
 [dependencies]
 airflow-common = { path = "../airflow-common", default-features = false }
 cfg-if = "1"
-reqwest = { version = "0.12", default-features = false, features = ["json"], optional = true }
 serde = { version = "1", default-features = false, features = ["derive", "alloc"] }
+
+# Optional dependencies
+reqwest = { version = "0.12", default-features = false, features = ["json"], optional = true }
 thiserror = { version = "2", default-features = false, optional = true }
 
 [dev-dependencies]
@@ -20,4 +22,4 @@ tokio = { version = "1", features = ["macros"] }
 [features]
 default = ["reqwest", "std"]
 reqwest = ["dep:reqwest", "dep:thiserror"]
-std = ["airflow-common/std", "serde/std", "thiserror/std"]
+std = ["airflow-common/std", "serde/std", "serde_json/std", "thiserror?/std"]

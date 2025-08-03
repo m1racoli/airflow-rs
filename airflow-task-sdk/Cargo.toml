@@ -13,4 +13,4 @@ thiserror = { version = "2", default-features = false }
 
 [features]
 default = ["std"]
-std = ["airflow-common/std"]
+std = ["airflow-common/std", "serde/std", "thiserror/std"]
