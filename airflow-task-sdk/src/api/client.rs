@@ -36,7 +36,9 @@ pub trait ExecutionApiClient {
 
 #[derive(thiserror::Error, Debug)]
 pub enum TaskInstanceApiError<E: error::Error> {
+    #[error("Not Found: {0}")]
     NotFound(String),
+    #[error("Conflict: {0}")]
     Conflict(String),
     #[error(transparent)]
     Other(#[from] E),
