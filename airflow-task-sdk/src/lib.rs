@@ -4,6 +4,8 @@ pub mod definitions;
 pub mod execution;
 
 pub mod prelude {
+    pub use crate::api::ExecutionApiClient;
+    pub use crate::api::TaskInstanceApiClient;
     pub use crate::definitions::Context;
     pub use crate::definitions::Dag;
     pub use crate::definitions::DagBag;
