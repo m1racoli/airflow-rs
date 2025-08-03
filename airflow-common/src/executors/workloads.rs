@@ -1,3 +1,11 @@
+cfg_if::cfg_if! {
+    if #[cfg(feature = "std")] {
+    } else {
+        extern crate alloc;
+        use alloc::string::String;
+    }
+}
+
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -5,16 +13,6 @@ use crate::{
     models::TaskInstanceLike,
     utils::{MapIndex, SecretString},
 };
-
-cfg_if::cfg_if! {
-    if #[cfg(feature = "std")] {
-        use std::fmt;
-    } else {
-        extern crate alloc;
-        use alloc::string::String;
-        use core::fmt;
-    }
-}
 
 /// Schema for telling task which bundle to run with.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -138,11 +136,4 @@ impl TaskInstanceLike for TaskInstance {
 }
 
 /// A unique identifier for a task instance in form of a UUID.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Hash)]
-pub struct UniqueTaskInstanceId(uuid::Uuid);
-
-impl fmt::Display for UniqueTaskInstanceId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
-    }
-}
+pub type UniqueTaskInstanceId = uuid::Uuid;
