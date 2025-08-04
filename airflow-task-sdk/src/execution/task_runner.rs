@@ -25,69 +25,83 @@ pub enum ExecutionError<C: ExecutionApiClient> {
     ExecutionApi(#[from] ExecutionApiError<C::Error>),
 }
 
-async fn run<C: ExecutionApiClient, T: TimeProvider>(
-    mut task: impl Task,
-    ti: &mut RuntimeTaskInstance,
-    context: &Context,
+#[derive(Debug)]
+pub struct TaskRunner<C: ExecutionApiClient, T: TimeProvider> {
     client: C,
     time_provider: T,
-) -> Result<(ExecutionResultTIState, Option<TaskError>), ExecutionError<C>> {
-    // TODO call on_execute_callback
-    let (state, error) = match task.execute(context).await {
-        Ok(_) => {
-            let when = time_provider.now();
-            client
-                .task_instances()
-                .succeed(&ti.id, &when, &[], &[], None)
-                .await
-                .map_err(ExecutionApiError::from)?;
-            (ExecutionResultTIState::Success, None)
+}
+
+impl<C: ExecutionApiClient, T: TimeProvider> TaskRunner<C, T> {
+    pub fn new(client: C, time_provider: T) -> Self {
+        Self {
+            client,
+            time_provider,
         }
-        Err(error) => (ExecutionResultTIState::Failed, Some(error)),
-    };
-    ti.state = state.into();
-    Ok((state, error))
-}
+    }
 
-async fn finalize(
-    ti: &RuntimeTaskInstance,
-    state: ExecutionResultTIState,
-    context: &Context,
-    error: Option<TaskError>,
-) {
-    let _it = ti;
-    let _context = context;
-    let _state = state;
-    let _error = error;
-    // currently no-op
-    // could do:
-    // - push xcom for operator extra links
-    // - set rendered template fields
-    // - run callbacks
-}
+    async fn run(
+        &self,
+        mut task: impl Task,
+        ti: &mut RuntimeTaskInstance,
+        context: &Context,
+    ) -> Result<(ExecutionResultTIState, Option<TaskError>), ExecutionError<C>> {
+        // TODO call on_execute_callback
+        let (state, error) = match task.execute(context).await {
+            Ok(_) => {
+                let when = self.time_provider.now();
+                self.client
+                    .task_instances()
+                    .succeed(&ti.id, &when, &[], &[], None)
+                    .await
+                    .map_err(ExecutionApiError::from)?;
+                (ExecutionResultTIState::Success, None)
+            }
+            Err(error) => (ExecutionResultTIState::Failed, Some(error)),
+        };
+        ti.state = state.into();
+        Ok((state, error))
+    }
 
-/// perform the actual task execution with the given startup details
-pub async fn main<D: DagBag, C: ExecutionApiClient, T: TimeProvider>(
-    what: StartupDetails,
-    dag_bag: D,
-    client: C,
-    time_provider: T,
-) -> Result<ExecutionResultTIState, ExecutionError<C>> {
-    let mut ti = RuntimeTaskInstance::from(what);
-    let context = ti.get_template_context();
+    async fn finalize(
+        &self,
+        ti: &RuntimeTaskInstance,
+        state: ExecutionResultTIState,
+        context: &Context,
+        error: Option<TaskError>,
+    ) {
+        let _it = ti;
+        let _context = context;
+        let _state = state;
+        let _error = error;
+        // currently no-op
+        // could do:
+        // - push xcom for operator extra links
+        // - set rendered template fields
+        // - run callbacks
+    }
 
-    let dag_id = ti.dag_id.clone();
-    let task_id = ti.task_id.clone();
+    /// perform the actual task execution with the given startup details
+    pub async fn main<D: DagBag>(
+        self,
+        what: StartupDetails,
+        dag_bag: D,
+    ) -> Result<ExecutionResultTIState, ExecutionError<C>> {
+        let mut ti = RuntimeTaskInstance::from(what);
+        let context = ti.get_template_context();
 
-    let dag = dag_bag
-        .get_dag(&dag_id)
-        .ok_or_else(|| ExecutionError::DagNotFound(ti.dag_id.clone()))?;
-    let task = dag
-        .get_task(&task_id)
-        .ok_or_else(|| ExecutionError::TaskNotFound(ti.dag_id.clone(), ti.task_id.clone()))?;
+        let dag_id = ti.dag_id.clone();
+        let task_id = ti.task_id.clone();
 
-    let (state, error) = run(task, &mut ti, &context, client, time_provider).await?;
-    finalize(&ti, state, &context, error).await;
-    // TODO communicate task result properly
-    Ok(state)
+        let dag = dag_bag
+            .get_dag(&dag_id)
+            .ok_or_else(|| ExecutionError::DagNotFound(ti.dag_id.clone()))?;
+        let task = dag
+            .get_task(&task_id)
+            .ok_or_else(|| ExecutionError::TaskNotFound(ti.dag_id.clone(), ti.task_id.clone()))?;
+
+        let (state, error) = self.run(task, &mut ti, &context).await?;
+        self.finalize(&ti, state, &context, error).await;
+        // TODO communicate task result properly
+        Ok(state)
+    }
 }
