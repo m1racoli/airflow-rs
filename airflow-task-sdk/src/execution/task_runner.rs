@@ -80,8 +80,7 @@ impl<C: ExecutionApiClient, T: TimeProvider> TaskRunner<C, T> {
         // - run callbacks
     }
 
-    /// perform the actual task execution with the given startup details
-    pub async fn main<D: DagBag>(
+    async fn _main<D: DagBag>(
         self,
         what: StartupDetails,
         dag_bag: D,
@@ -103,5 +102,37 @@ impl<C: ExecutionApiClient, T: TimeProvider> TaskRunner<C, T> {
         self.finalize(&ti, state, &context, error).await;
         // TODO communicate task result properly
         Ok(state)
+    }
+
+    #[cfg(not(feature = "tracing"))]
+    /// Perform the actual task execution with the given startup details
+    pub async fn main<D: DagBag>(
+        self,
+        what: StartupDetails,
+        dag_bag: D,
+    ) -> Result<ExecutionResultTIState, ExecutionError<C>> {
+        self._main(what, dag_bag).await
+    }
+
+    #[cfg(feature = "tracing")]
+    /// Perform the actual task execution with the given startup details
+    ///
+    /// The task execution is instrumented with a special tracing span
+    /// which allows us to filter task logs.
+    pub async fn main<D: DagBag>(
+        self,
+        what: StartupDetails,
+        dag_bag: D,
+    ) -> Result<ExecutionResultTIState, ExecutionError<C>> {
+        use tracing::{Instrument, info_span};
+
+        let dag_id = what.ti.dag_id();
+        let task_id = what.ti.task_id();
+        let run_id = what.ti.run_id();
+        let try_number = what.ti.try_number();
+        let map_index: i64 = what.ti.map_index().into();
+
+        let span = info_span!(target: "task_context", "run_task", dag_id = dag_id, task_id=task_id, run_id=run_id, try_number = try_number, map_index = map_index);
+        self._main(what, dag_bag).instrument(span).await
     }
 }

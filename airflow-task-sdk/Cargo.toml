@@ -12,6 +12,7 @@ serde = { version = "1", default-features = false, features = ["derive", "alloc"
 thiserror = { version = "2", default-features = false }
 
 reqwest = { version = "0.12", default-features = false, features = ["json"], optional = true }
+tracing = { version = "0.1", default-features = false, optional = true }
 
 [dev-dependencies]
 httpmock = "0.8.0-alpha.1"
@@ -19,6 +20,7 @@ serde_json = { version = "1", default-features = false, features = ["alloc"] }
 tokio = { version = "1", features = ["macros"] }
 
 [features]
-default = ["reqwest", "std"]
+default = ["reqwest", "std", "tracing"]
 reqwest = ["dep:reqwest"]
-std = ["airflow-common/std", "serde/std", "serde_json/std", "thiserror/std"]
+std = ["airflow-common/std", "serde/std", "serde_json/std", "thiserror/std", "tracing?/std"]
+tracing = ["dep:tracing"]
