@@ -6,32 +6,47 @@ cfg_if::cfg_if! {
     }
 }
 
+use airflow_common::prelude::*;
+
 use crate::{
+    api::{ExecutionApiClient, ExecutionApiError, TaskInstanceApiClient},
     definitions::{Context, Dag, DagBag, Task, TaskError},
     execution::{ExecutionResultTIState, RuntimeTaskInstance, StartupDetails},
 };
 
 /// An error which can occur during task execution outside the task itself.
 #[derive(thiserror::Error, Debug)]
-pub enum ExecutionError {
+pub enum ExecutionError<C: ExecutionApiClient> {
     #[error("DAG not found: {0}")]
     DagNotFound(String),
     #[error("Task not found in DAG: {0}.{1}")]
     TaskNotFound(String, String),
+    #[error("Failed to call execution API: {0}")]
+    ExecutionApi(#[from] ExecutionApiError<C::Error>),
 }
 
-async fn run(
+async fn run<C: ExecutionApiClient, T: TimeProvider>(
     mut task: impl Task,
     ti: &mut RuntimeTaskInstance,
     context: &Context,
-) -> (ExecutionResultTIState, Option<TaskError>) {
+    client: C,
+    time_provider: T,
+) -> Result<(ExecutionResultTIState, Option<TaskError>), ExecutionError<C>> {
     // TODO call on_execute_callback
     let (state, error) = match task.execute(context).await {
-        Ok(_result) => (ExecutionResultTIState::Success, None),
+        Ok(_) => {
+            let when = time_provider.now();
+            client
+                .task_instances()
+                .succeed(&ti.id, &when, &[], &[], None)
+                .await
+                .map_err(ExecutionApiError::from)?;
+            (ExecutionResultTIState::Success, None)
+        }
         Err(error) => (ExecutionResultTIState::Failed, Some(error)),
     };
     ti.state = state.into();
-    (state, error)
+    Ok((state, error))
 }
 
 async fn finalize(
@@ -52,10 +67,12 @@ async fn finalize(
 }
 
 /// perform the actual task execution with the given startup details
-pub async fn main<D: DagBag>(
+pub async fn main<D: DagBag, C: ExecutionApiClient, T: TimeProvider>(
     what: StartupDetails,
     dag_bag: D,
-) -> Result<ExecutionResultTIState, ExecutionError> {
+    client: C,
+    time_provider: T,
+) -> Result<ExecutionResultTIState, ExecutionError<C>> {
     let mut ti = RuntimeTaskInstance::from(what);
     let context = ti.get_template_context();
 
@@ -69,7 +86,7 @@ pub async fn main<D: DagBag>(
         .get_task(&task_id)
         .ok_or_else(|| ExecutionError::TaskNotFound(ti.dag_id.clone(), ti.task_id.clone()))?;
 
-    let (state, error) = run(task, &mut ti, &context).await;
+    let (state, error) = run(task, &mut ti, &context, client, time_provider).await?;
     finalize(&ti, state, &context, error).await;
     // TODO communicate task result properly
     Ok(state)
