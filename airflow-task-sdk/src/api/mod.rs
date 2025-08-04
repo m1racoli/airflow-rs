@@ -4,6 +4,7 @@ mod datamodels;
 mod reqwest_impl;
 
 pub use client::ExecutionApiClient;
+pub use client::ExecutionApiError;
 pub use client::TaskInstanceApiClient;
 pub use client::TaskInstanceApiError;
 pub use datamodels::AssetProfile;
@@ -20,4 +21,6 @@ pub use reqwest_impl::ReqwestExecutionApiClient;
 #[cfg(feature = "reqwest")]
 pub type StdExecutionApiClient = reqwest_impl::ReqwestExecutionApiClient;
 #[cfg(feature = "reqwest")]
-pub type StdExecutionApiError = TaskInstanceApiError<reqwest::Error>;
+pub type StdExecutionApiError = ExecutionApiError<reqwest::Error>;
+#[cfg(feature = "reqwest")]
+pub type StdTaskInstanceApiError = TaskInstanceApiError<reqwest::Error>;

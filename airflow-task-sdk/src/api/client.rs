@@ -32,12 +32,18 @@ pub trait ExecutionApiClient {
     fn task_instances(&self) -> impl TaskInstanceApiClient<Error = Self::Error> + Send;
 }
 
-// TODO do we want to retrieve detailed reason and message from error response?
+/// An umbrella error type for the Execution API.
+#[derive(thiserror::Error, Debug)]
+pub enum ExecutionApiError<E: error::Error> {
+    #[error(transparent)]
+    TaskInstance(#[from] TaskInstanceApiError<E>),
+}
 
+/// An error which can occur when interacting with the TaskInstance API.
 #[derive(thiserror::Error, Debug)]
 pub enum TaskInstanceApiError<E: error::Error> {
     #[error("Not Found: {0}")]
-    NotFound(String),
+    NotFound(String), // TODO do we want to retrieve detailed reason and message from error response?
     #[error("Conflict: {0}")]
     Conflict(String),
     #[error(transparent)]
