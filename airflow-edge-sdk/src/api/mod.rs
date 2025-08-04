@@ -1,6 +1,3 @@
-#[cfg(feature = "reqwest")]
-use airflow_common::api::StdJWTGenerator;
-
 mod client;
 mod models;
 #[cfg(feature = "reqwest")]
@@ -15,8 +12,3 @@ pub use models::WorkerSetStateReturn;
 pub use reqwest_impl::ReqwestEdgeApiClient;
 #[cfg(feature = "reqwest")]
 pub use reqwest_impl::ReqwestEdgeApiError;
-
-#[cfg(feature = "reqwest")]
-pub type StdEdgeApiClient = reqwest_impl::ReqwestEdgeApiClient<StdJWTGenerator>;
-#[cfg(feature = "reqwest")]
-pub type StdEdgeApiError = reqwest_impl::ReqwestEdgeApiError<StdJWTGenerator>;

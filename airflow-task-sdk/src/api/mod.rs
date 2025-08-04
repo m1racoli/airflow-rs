@@ -17,10 +17,3 @@ pub use datamodels::TaskRescheduleStartDate;
 pub use datamodels::TaskStatesResponse;
 #[cfg(feature = "reqwest")]
 pub use reqwest_impl::ReqwestExecutionApiClient;
-
-#[cfg(feature = "reqwest")]
-pub type StdExecutionApiClient = reqwest_impl::ReqwestExecutionApiClient;
-#[cfg(feature = "reqwest")]
-pub type StdExecutionApiError = ExecutionApiError<reqwest::Error>;
-#[cfg(feature = "reqwest")]
-pub type StdTaskInstanceApiError = TaskInstanceApiError<reqwest::Error>;
