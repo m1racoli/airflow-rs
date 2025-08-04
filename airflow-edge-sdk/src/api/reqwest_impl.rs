@@ -98,16 +98,22 @@ impl<J: JWTGenerator> ReqwestEdgeApiClient<J> {
             .map_err(|e| ReqwestEdgeApiError::JWT(e))
     }
 
-    fn builder(
+    fn request<T: Serialize + ?Sized>(
         &self,
         method: Method,
         path: &str,
+        json: Option<&T>,
     ) -> Result<reqwest::RequestBuilder, ReqwestEdgeApiError<J>> {
         let token = self.token(path)?;
         let builder = self
             .client
             .request(method, format!("{}/{}", self.base_url, path))
             .header("authorization", token);
+        let builder = if let Some(json) = json {
+            builder.json(json)
+        } else {
+            builder
+        };
         Ok(builder)
     }
 
@@ -135,7 +141,7 @@ impl<J: JWTGenerator + Sync + Debug> EdgeApiClient for ReqwestEdgeApiClient<J> {
 
     async fn health(&self) -> Result<super::HealthReturn, Self::Error> {
         let path = "health";
-        let builder = self.builder(Method::GET, path)?;
+        let builder = self.request::<()>(Method::GET, path, None)?;
         let response = builder.send().await?;
         let response = self.handle_response(response).await?;
         Ok(response.json().await?)
@@ -156,7 +162,7 @@ impl<J: JWTGenerator + Sync + Debug> EdgeApiClient for ReqwestEdgeApiClient<J> {
             sysinfo,
             maintenance_comments: None,
         };
-        let builder = self.builder(Method::POST, &path)?.json(&body);
+        let builder = self.request(Method::POST, &path, Some(&body))?;
         let response = builder.send().await?;
         let response = self.handle_response(response).await?;
         Ok(response.json().await?)
@@ -179,7 +185,7 @@ impl<J: JWTGenerator + Sync + Debug> EdgeApiClient for ReqwestEdgeApiClient<J> {
             sysinfo,
             maintenance_comments,
         };
-        let builder = self.builder(Method::PATCH, &path)?.json(&body);
+        let builder = self.request(Method::PATCH, &path, Some(&body))?;
         let response = builder.send().await?;
         let response = self.handle_response(response).await?;
         Ok(response.json().await?)
@@ -196,7 +202,7 @@ impl<J: JWTGenerator + Sync + Debug> EdgeApiClient for ReqwestEdgeApiClient<J> {
             queues,
             free_concurrency,
         };
-        let builder = self.builder(Method::POST, &path)?.json(&body);
+        let builder = self.request(Method::POST, &path, Some(&body))?;
         let response = builder.send().await?;
         let response = self.handle_response(response).await?;
         Ok(response.json().await?)
@@ -216,7 +222,7 @@ impl<J: JWTGenerator + Sync + Debug> EdgeApiClient for ReqwestEdgeApiClient<J> {
             key.map_index(),
             state
         );
-        let builder = self.builder(Method::PATCH, &path)?;
+        let builder = self.request::<()>(Method::PATCH, &path, None)?;
         let response = builder.send().await?;
         self.handle_response(response).await?;
         Ok(())
@@ -235,7 +241,7 @@ impl<J: JWTGenerator + Sync + Debug> EdgeApiClient for ReqwestEdgeApiClient<J> {
             key.map_index(),
         );
 
-        let builder = self.builder(Method::GET, &path)?;
+        let builder = self.request::<()>(Method::GET, &path, None)?;
         let response = builder.send().await?;
         let response = self.handle_response(response).await?;
         Ok(response.json().await?)
@@ -259,7 +265,7 @@ impl<J: JWTGenerator + Sync + Debug> EdgeApiClient for ReqwestEdgeApiClient<J> {
             log_chunk_time,
             log_chunk_data,
         };
-        let builder = self.builder(Method::POST, &path)?.json(&body);
+        let builder = self.request(Method::POST, &path, Some(&body))?;
         let response = builder.send().await?;
         self.handle_response(response).await?;
         Ok(())
