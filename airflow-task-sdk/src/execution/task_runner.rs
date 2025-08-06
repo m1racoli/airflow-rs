@@ -6,7 +6,7 @@ cfg_if::cfg_if! {
     }
 }
 
-use airflow_common::prelude::*;
+use airflow_common::datetime::TimeProvider;
 
 use crate::{
     api::{ExecutionApiClient, ExecutionApiError, TaskInstanceApiClient},
@@ -124,6 +124,7 @@ impl<C: ExecutionApiClient, T: TimeProvider> TaskRunner<C, T> {
         what: StartupDetails,
         dag_bag: D,
     ) -> Result<ExecutionResultTIState, ExecutionError<C>> {
+        use airflow_common::models::TaskInstanceLike;
         use tracing::{Instrument, info_span};
 
         let dag_id = what.ti.dag_id();

@@ -11,8 +11,7 @@ cfg_if::cfg_if! {
 use core::fmt::Debug;
 
 use crate::models::{EdgeWorkerState, SysInfo};
-use airflow_common::datetime::UtcDateTime;
-use airflow_common::prelude::*;
+use airflow_common::{api::JWTGenerator, datetime::UtcDateTime};
 use reqwest::{Client, Method, Response, StatusCode, header::HeaderMap};
 use serde::Serialize;
 
