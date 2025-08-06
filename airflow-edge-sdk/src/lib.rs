@@ -6,7 +6,3 @@ extern crate alloc;
 
 pub mod api;
 pub mod models;
-
-pub mod prelude {
-    pub use crate::api::EdgeApiClient;
-}
