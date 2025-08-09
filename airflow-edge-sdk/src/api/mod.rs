@@ -4,6 +4,7 @@ mod models;
 mod reqwest_impl;
 
 pub use client::EdgeApiClient;
+pub use client::LocalEdgeApiClient;
 pub use models::EdgeJobFetched;
 pub use models::HealthReturn;
 pub use models::WorkerRegistrationReturn;
