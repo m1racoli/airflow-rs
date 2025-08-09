@@ -31,39 +31,6 @@ pub enum ReqwestEdgeApiError<J: JWTGenerator> {
     Http(StatusCode, Option<String>),
 }
 
-/// Incremental new log content from worker.
-#[derive(Debug, Serialize)]
-struct PushLogsBody<'a> {
-    /// Time of the log chunk at point of sending.
-    log_chunk_time: &'a UtcDateTime,
-    /// Log chunk data as incremental log text.
-    log_chunk_data: &'a str,
-}
-
-/// Queues that a worker supports to run jobs on.
-#[derive(Debug, Serialize)]
-struct WorkerQueuesBody<'a> {
-    /// List of queues the worker is pulling jobs from. If not provided, worker pulls from all queues.
-    queues: Option<&'a Vec<String>>,
-    /// Number of free concurrency slots on the worker.
-    free_concurrency: usize,
-}
-
-/// Details of the worker state sent to the scheduler.
-#[derive(Debug, Serialize)]
-struct WorkerStateBody<'a> {
-    /// State of the worker from the view of the worker.
-    state: EdgeWorkerState,
-    /// Number of active jobs the worker is running.
-    jobs_active: usize,
-    /// List of queues the worker is pulling jobs from. If not provided, worker pulls from all queues.
-    queues: Option<&'a Vec<String>>,
-    /// System information of the worker.
-    sysinfo: &'a SysInfo,
-    /// Comments about the maintenance state of the worker.
-    maintenance_comments: Option<&'a str>,
-}
-
 /// Client for the Edge API using Reqwest.
 #[derive(Debug, Clone)]
 pub struct ReqwestEdgeApiClient<J: JWTGenerator> {
@@ -269,6 +236,39 @@ impl<J: JWTGenerator + Sync + Debug + Send> EdgeApiClient for ReqwestEdgeApiClie
         self.handle_response(response).await?;
         Ok(())
     }
+}
+
+/// Incremental new log content from worker.
+#[derive(Debug, Serialize)]
+struct PushLogsBody<'a> {
+    /// Time of the log chunk at point of sending.
+    log_chunk_time: &'a UtcDateTime,
+    /// Log chunk data as incremental log text.
+    log_chunk_data: &'a str,
+}
+
+/// Queues that a worker supports to run jobs on.
+#[derive(Debug, Serialize)]
+struct WorkerQueuesBody<'a> {
+    /// List of queues the worker is pulling jobs from. If not provided, worker pulls from all queues.
+    queues: Option<&'a Vec<String>>,
+    /// Number of free concurrency slots on the worker.
+    free_concurrency: usize,
+}
+
+/// Details of the worker state sent to the scheduler.
+#[derive(Debug, Serialize)]
+struct WorkerStateBody<'a> {
+    /// State of the worker from the view of the worker.
+    state: EdgeWorkerState,
+    /// Number of active jobs the worker is running.
+    jobs_active: usize,
+    /// List of queues the worker is pulling jobs from. If not provided, worker pulls from all queues.
+    queues: Option<&'a Vec<String>>,
+    /// System information of the worker.
+    sysinfo: &'a SysInfo,
+    /// Comments about the maintenance state of the worker.
+    maintenance_comments: Option<&'a str>,
 }
 
 #[cfg(test)]
