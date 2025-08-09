@@ -23,6 +23,7 @@ struct Claims<'i, 'a, 'm> {
     method: &'m str,
 }
 
+#[derive(Debug, Clone)]
 pub struct JWTCompactJWTGenerator<T: TimeProvider + Clone> {
     key: SecretString,
     valid_for: u64,
