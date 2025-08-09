@@ -66,7 +66,7 @@ struct WorkerStateBody<'a> {
 
 /// Client for the Edge API using Reqwest.
 #[derive(Debug, Clone)]
-pub struct ReqwestEdgeApiClient<J> {
+pub struct ReqwestEdgeApiClient<J: JWTGenerator> {
     client: Client,
     base_url: String,
     jwt_generator: J,
@@ -135,10 +135,10 @@ impl<J: JWTGenerator> ReqwestEdgeApiClient<J> {
     }
 }
 
-impl<J: JWTGenerator + Sync + Debug> EdgeApiClient for ReqwestEdgeApiClient<J> {
+impl<J: JWTGenerator + Sync + Debug + Send> EdgeApiClient for ReqwestEdgeApiClient<J> {
     type Error = ReqwestEdgeApiError<J>;
 
-    async fn health(&self) -> Result<super::HealthReturn, Self::Error> {
+    async fn health(&mut self) -> Result<super::HealthReturn, Self::Error> {
         let path = "health";
         let builder = self.request::<()>(Method::GET, path, None)?;
         let response = builder.send().await?;
@@ -147,7 +147,7 @@ impl<J: JWTGenerator + Sync + Debug> EdgeApiClient for ReqwestEdgeApiClient<J> {
     }
 
     async fn worker_register(
-        &self,
+        &mut self,
         hostname: &str,
         state: EdgeWorkerState,
         queues: Option<&Vec<String>>,
@@ -168,7 +168,7 @@ impl<J: JWTGenerator + Sync + Debug> EdgeApiClient for ReqwestEdgeApiClient<J> {
     }
 
     async fn worker_set_state(
-        &self,
+        &mut self,
         hostname: &str,
         state: EdgeWorkerState,
         jobs_active: usize,
@@ -191,7 +191,7 @@ impl<J: JWTGenerator + Sync + Debug> EdgeApiClient for ReqwestEdgeApiClient<J> {
     }
 
     async fn jobs_fetch(
-        &self,
+        &mut self,
         hostname: &str,
         queues: Option<&Vec<String>>,
         free_concurrency: usize,
@@ -208,7 +208,7 @@ impl<J: JWTGenerator + Sync + Debug> EdgeApiClient for ReqwestEdgeApiClient<J> {
     }
 
     async fn jobs_set_state(
-        &self,
+        &mut self,
         key: &airflow_common::models::TaskInstanceKey,
         state: airflow_common::utils::TaskInstanceState,
     ) -> Result<(), Self::Error> {
@@ -228,7 +228,7 @@ impl<J: JWTGenerator + Sync + Debug> EdgeApiClient for ReqwestEdgeApiClient<J> {
     }
 
     async fn logs_logfile_path(
-        &self,
+        &mut self,
         key: &airflow_common::models::TaskInstanceKey,
     ) -> Result<String, Self::Error> {
         let path = format!(
@@ -247,7 +247,7 @@ impl<J: JWTGenerator + Sync + Debug> EdgeApiClient for ReqwestEdgeApiClient<J> {
     }
 
     async fn logs_push(
-        &self,
+        &mut self,
         key: &airflow_common::models::TaskInstanceKey,
         log_chunk_time: &UtcDateTime,
         log_chunk_data: &str,
@@ -311,7 +311,8 @@ mod tests {
     #[tokio::test]
     async fn test_health() {
         let server = MockServer::start_async().await;
-        let client = ReqwestEdgeApiClient::new(&server.base_url(), mock_jwt_generator()).unwrap();
+        let mut client =
+            ReqwestEdgeApiClient::new(&server.base_url(), mock_jwt_generator()).unwrap();
 
         let http_mock = server
             .mock_async(|when, then| {
@@ -333,7 +334,8 @@ mod tests {
     #[tokio::test]
     async fn test_worker_register() {
         let server = MockServer::start_async().await;
-        let client = ReqwestEdgeApiClient::new(&server.base_url(), mock_jwt_generator()).unwrap();
+        let mut client =
+            ReqwestEdgeApiClient::new(&server.base_url(), mock_jwt_generator()).unwrap();
 
         let http_mock = server
             .mock_async(|when, then| {
@@ -359,7 +361,8 @@ mod tests {
     #[tokio::test]
     async fn test_worker_set_state() {
         let server = MockServer::start_async().await;
-        let client = ReqwestEdgeApiClient::new(&server.base_url(), mock_jwt_generator()).unwrap();
+        let mut client =
+            ReqwestEdgeApiClient::new(&server.base_url(), mock_jwt_generator()).unwrap();
 
         let http_mock = server
             .mock_async(|when, then| {
@@ -394,7 +397,8 @@ mod tests {
     #[tokio::test]
     async fn test_jobs_fetch() {
         let server = MockServer::start_async().await;
-        let client = ReqwestEdgeApiClient::new(&server.base_url(), mock_jwt_generator()).unwrap();
+        let mut client =
+            ReqwestEdgeApiClient::new(&server.base_url(), mock_jwt_generator()).unwrap();
 
         let http_mock = server
             .mock_async(|when, then| {
@@ -451,7 +455,8 @@ mod tests {
     #[tokio::test]
     async fn test_jobs_set_state() {
         let server = MockServer::start_async().await;
-        let client = ReqwestEdgeApiClient::new(&server.base_url(), mock_jwt_generator()).unwrap();
+        let mut client =
+            ReqwestEdgeApiClient::new(&server.base_url(), mock_jwt_generator()).unwrap();
 
         let http_mock = server
             .mock_async(|when, then| {
@@ -477,7 +482,8 @@ mod tests {
     #[tokio::test]
     async fn test_logs_logfile_path() {
         let server = MockServer::start_async().await;
-        let client = ReqwestEdgeApiClient::new(&server.base_url(), mock_jwt_generator()).unwrap();
+        let mut client =
+            ReqwestEdgeApiClient::new(&server.base_url(), mock_jwt_generator()).unwrap();
 
         let http_mock = server
             .mock_async(|when, then| {
@@ -502,7 +508,8 @@ mod tests {
     #[tokio::test]
     async fn test_logs_push() {
         let server = MockServer::start_async().await;
-        let client = ReqwestEdgeApiClient::new(&server.base_url(), mock_jwt_generator()).unwrap();
+        let mut client =
+            ReqwestEdgeApiClient::new(&server.base_url(), mock_jwt_generator()).unwrap();
 
         let http_mock = server
             .mock_async(|when, then| {
@@ -526,7 +533,8 @@ mod tests {
     #[tokio::test]
     async fn test_not_found() {
         let server = MockServer::start_async().await;
-        let client = ReqwestEdgeApiClient::new(&server.base_url(), mock_jwt_generator()).unwrap();
+        let mut client =
+            ReqwestEdgeApiClient::new(&server.base_url(), mock_jwt_generator()).unwrap();
 
         let http_mock = server
             .mock_async(|when, then| {
@@ -551,7 +559,8 @@ mod tests {
     #[tokio::test]
     async fn test_bad_request() {
         let server = MockServer::start_async().await;
-        let client = ReqwestEdgeApiClient::new(&server.base_url(), mock_jwt_generator()).unwrap();
+        let mut client =
+            ReqwestEdgeApiClient::new(&server.base_url(), mock_jwt_generator()).unwrap();
 
         let http_mock = server
             .mock_async(|when, then| {
@@ -578,7 +587,8 @@ mod tests {
     #[tokio::test]
     async fn test_http_error() {
         let server = MockServer::start_async().await;
-        let client = ReqwestEdgeApiClient::new(&server.base_url(), mock_jwt_generator()).unwrap();
+        let mut client =
+            ReqwestEdgeApiClient::new(&server.base_url(), mock_jwt_generator()).unwrap();
 
         let http_mock = server
             .mock_async(|when, then| {

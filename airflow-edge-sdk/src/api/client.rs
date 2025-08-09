@@ -21,11 +21,11 @@ pub trait EdgeApiClient {
     type Error: error::Error;
 
     /// Health check of the Edge API.
-    fn health(&self) -> impl future::Future<Output = Result<HealthReturn, Self::Error>> + Send;
+    fn health(&mut self) -> impl future::Future<Output = Result<HealthReturn, Self::Error>> + Send;
 
     /// Register worker with the Edge API.
     fn worker_register(
-        &self,
+        &mut self,
         hostname: &str,
         state: EdgeWorkerState,
         queues: Option<&Vec<String>>,
@@ -34,7 +34,7 @@ pub trait EdgeApiClient {
 
     /// Update the state of the worker in the central site and thereby implicitly heartbeat.
     fn worker_set_state(
-        &self,
+        &mut self,
         hostname: &str,
         state: EdgeWorkerState,
         jobs_active: usize,
@@ -45,7 +45,7 @@ pub trait EdgeApiClient {
 
     /// Fetch a job to execute on the edge worker.
     fn jobs_fetch(
-        &self,
+        &mut self,
         hostname: &str,
         queues: Option<&Vec<String>>,
         free_concurrency: usize,
@@ -53,20 +53,20 @@ pub trait EdgeApiClient {
 
     /// Set the state of a job.
     fn jobs_set_state(
-        &self,
+        &mut self,
         key: &TaskInstanceKey,
         state: TaskInstanceState,
     ) -> impl future::Future<Output = Result<(), Self::Error>> + Send;
 
     /// Elaborate the path and filename to expect from task execution.
     fn logs_logfile_path(
-        &self,
+        &mut self,
         key: &TaskInstanceKey,
     ) -> impl future::Future<Output = Result<String, Self::Error>> + Send;
 
     /// Push an incremental log chunk from Edge Worker to central site.
     fn logs_push(
-        &self,
+        &mut self,
         key: &TaskInstanceKey,
         log_chunk_time: &UtcDateTime,
         log_chunk_data: &str,
