@@ -4,6 +4,7 @@ cfg_if::cfg_if! {
         use std::fmt;
     } else {
         extern crate alloc;
+        use alloc::format;
         use alloc::string::String;
         use alloc::string::ToString;
         use core::error;

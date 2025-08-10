@@ -2,6 +2,7 @@ cfg_if::cfg_if! {
     if #[cfg(feature = "std")] {
         use std::fmt;
     } else {
+        use alloc::format;
         use core::fmt;
     }
 }
