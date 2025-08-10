@@ -15,12 +15,22 @@ use crate::models::{EdgeWorkerState, SysInfo};
 
 use super::{EdgeJobFetched, HealthReturn, WorkerRegistrationReturn, WorkerSetStateReturn};
 
+#[derive(thiserror::Error, Debug)]
+pub enum EdgeApiError<E: error::Error> {
+    #[error("Edge provider not enabled on server.")]
+    EdgeNotEnabled,
+    #[error("Version mismatch: {0}")]
+    VersionMismatch(String),
+    #[error(transparent)]
+    Other(#[from] E),
+}
+
 #[trait_variant::make(EdgeApiClient: Send)]
 pub trait LocalEdgeApiClient {
     type Error: error::Error;
 
     /// Health check of the Edge API.
-    async fn health(&mut self) -> Result<HealthReturn, Self::Error>;
+    async fn health(&mut self) -> Result<HealthReturn, EdgeApiError<Self::Error>>;
 
     /// Register worker with the Edge API.
     async fn worker_register(
@@ -29,7 +39,7 @@ pub trait LocalEdgeApiClient {
         state: EdgeWorkerState,
         queues: Option<&Vec<String>>,
         sysinfo: &SysInfo,
-    ) -> Result<WorkerRegistrationReturn, Self::Error>;
+    ) -> Result<WorkerRegistrationReturn, EdgeApiError<Self::Error>>;
 
     /// Update the state of the worker in the central site and thereby implicitly heartbeat.
     async fn worker_set_state(
@@ -40,7 +50,7 @@ pub trait LocalEdgeApiClient {
         queues: Option<&Vec<String>>,
         sysinfo: &SysInfo,
         maintenance_comments: Option<&str>,
-    ) -> Result<WorkerSetStateReturn, Self::Error>;
+    ) -> Result<WorkerSetStateReturn, EdgeApiError<Self::Error>>;
 
     /// Fetch a job to execute on the edge worker.
     async fn jobs_fetch(
@@ -48,17 +58,20 @@ pub trait LocalEdgeApiClient {
         hostname: &str,
         queues: Option<&Vec<String>>,
         free_concurrency: usize,
-    ) -> Result<Option<EdgeJobFetched>, Self::Error>;
+    ) -> Result<Option<EdgeJobFetched>, EdgeApiError<Self::Error>>;
 
     /// Set the state of a job.
     async fn jobs_set_state(
         &mut self,
         key: &TaskInstanceKey,
         state: TaskInstanceState,
-    ) -> Result<(), Self::Error>;
+    ) -> Result<(), EdgeApiError<Self::Error>>;
 
     /// Elaborate the path and filename to expect from task execution.
-    async fn logs_logfile_path(&mut self, key: &TaskInstanceKey) -> Result<String, Self::Error>;
+    async fn logs_logfile_path(
+        &mut self,
+        key: &TaskInstanceKey,
+    ) -> Result<String, EdgeApiError<Self::Error>>;
 
     /// Push an incremental log chunk from Edge Worker to central site.
     async fn logs_push(
@@ -66,5 +79,5 @@ pub trait LocalEdgeApiClient {
         key: &TaskInstanceKey,
         log_chunk_time: &UtcDateTime,
         log_chunk_data: &str,
-    ) -> Result<(), Self::Error>;
+    ) -> Result<(), EdgeApiError<Self::Error>>;
 }

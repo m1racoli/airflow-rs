@@ -1,34 +1,33 @@
 cfg_if::cfg_if! {
     if #[cfg(feature = "std")] {
+        use std::error;
     } else {
         extern crate alloc;
         use alloc::string::String;
         use alloc::string::ToString;
         use alloc::vec::Vec;
+        use core::error;
     }
 }
 
 use core::fmt::Debug;
 
-use crate::models::{EdgeWorkerState, SysInfo};
+use crate::{
+    api::EdgeApiError,
+    models::{EdgeWorkerState, SysInfo},
+};
 use airflow_common::{api::JWTGenerator, datetime::UtcDateTime};
 use reqwest::{Client, Method, Response, StatusCode, header::HeaderMap};
-use serde::Serialize;
+use serde::{Serialize, de::DeserializeOwned};
 
 use super::EdgeApiClient;
 
 #[derive(thiserror::Error, Debug)]
-pub enum ReqwestEdgeApiError<J: JWTGenerator> {
+pub enum ReqwestEdgeApiError<J: error::Error> {
     #[error(transparent)]
     Reqwest(#[from] reqwest::Error),
     #[error(transparent)]
-    JWT(J::Error),
-    #[error("Edge provider not enabled on server.")]
-    EdgeNotEnabled,
-    #[error("{0}")]
-    VersionMismatch(String),
-    #[error("http error: {0} {1:?}")]
-    Http(StatusCode, Option<String>),
+    JWT(J),
 }
 
 /// Client for the Edge API using Reqwest.
@@ -58,18 +57,18 @@ impl<J: JWTGenerator> ReqwestEdgeApiClient<J> {
         })
     }
 
-    fn token(&self, path: &str) -> Result<String, ReqwestEdgeApiError<J>> {
+    fn token(&self, path: &str) -> Result<String, ReqwestEdgeApiError<J::Error>> {
         self.jwt_generator
             .generate(path)
-            .map_err(|e| ReqwestEdgeApiError::JWT(e))
+            .map_err(ReqwestEdgeApiError::JWT)
     }
 
-    fn request<T: Serialize + ?Sized>(
+    async fn request<T: Serialize + ?Sized>(
         &self,
         method: Method,
         path: &str,
         json: Option<&T>,
-    ) -> Result<reqwest::RequestBuilder, ReqwestEdgeApiError<J>> {
+    ) -> Result<reqwest::Response, EdgeApiError<ReqwestEdgeApiError<J::Error>>> {
         let token = self.token(path)?;
         let builder = self
             .client
@@ -80,37 +79,39 @@ impl<J: JWTGenerator> ReqwestEdgeApiClient<J> {
         } else {
             builder
         };
-        Ok(builder)
+
+        let response = builder.send().await.map_err(ReqwestEdgeApiError::Reqwest)?;
+        match response.status() {
+            StatusCode::NOT_FOUND => Err(EdgeApiError::EdgeNotEnabled),
+            StatusCode::BAD_REQUEST => {
+                let body = response
+                    .text()
+                    .await
+                    .map_err(ReqwestEdgeApiError::Reqwest)?;
+                Err(EdgeApiError::VersionMismatch(body))
+            }
+            _ => match response.error_for_status() {
+                Ok(response) => Ok(response),
+                Err(e) => Err(ReqwestEdgeApiError::Reqwest(e))?,
+            },
+        }
     }
 
-    async fn handle_response(
+    async fn deserialize<T: DeserializeOwned>(
         &self,
         response: Response,
-    ) -> Result<Response, ReqwestEdgeApiError<J>> {
-        match response.status() {
-            StatusCode::OK => Ok(response),
-            StatusCode::NOT_FOUND => Err(ReqwestEdgeApiError::EdgeNotEnabled),
-            StatusCode::BAD_REQUEST => {
-                let body = response.text().await?;
-                Err(ReqwestEdgeApiError::VersionMismatch(body))
-            }
-            code => {
-                let body = response.text().await.ok();
-                Err(ReqwestEdgeApiError::Http(code, body))
-            }
-        }
+    ) -> Result<T, ReqwestEdgeApiError<J::Error>> {
+        Ok(response.json().await?)
     }
 }
 
-impl<J: JWTGenerator + Sync + Debug + Send> EdgeApiClient for ReqwestEdgeApiClient<J> {
-    type Error = ReqwestEdgeApiError<J>;
+impl<J: JWTGenerator + Sync + Send> EdgeApiClient for ReqwestEdgeApiClient<J> {
+    type Error = ReqwestEdgeApiError<J::Error>;
 
-    async fn health(&mut self) -> Result<super::HealthReturn, Self::Error> {
+    async fn health(&mut self) -> Result<super::HealthReturn, EdgeApiError<Self::Error>> {
         let path = "health";
-        let builder = self.request::<()>(Method::GET, path, None)?;
-        let response = builder.send().await?;
-        let response = self.handle_response(response).await?;
-        Ok(response.json().await?)
+        let response = self.request::<()>(Method::GET, path, None).await?;
+        Ok(self.deserialize(response).await?)
     }
 
     async fn worker_register(
@@ -119,7 +120,7 @@ impl<J: JWTGenerator + Sync + Debug + Send> EdgeApiClient for ReqwestEdgeApiClie
         state: EdgeWorkerState,
         queues: Option<&Vec<String>>,
         sysinfo: &SysInfo,
-    ) -> Result<super::WorkerRegistrationReturn, Self::Error> {
+    ) -> Result<super::WorkerRegistrationReturn, EdgeApiError<Self::Error>> {
         let path = format!("worker/{hostname}");
         let body = WorkerStateBody {
             state,
@@ -128,10 +129,8 @@ impl<J: JWTGenerator + Sync + Debug + Send> EdgeApiClient for ReqwestEdgeApiClie
             sysinfo,
             maintenance_comments: None,
         };
-        let builder = self.request(Method::POST, &path, Some(&body))?;
-        let response = builder.send().await?;
-        let response = self.handle_response(response).await?;
-        Ok(response.json().await?)
+        let response = self.request(Method::POST, &path, Some(&body)).await?;
+        Ok(self.deserialize(response).await?)
     }
 
     async fn worker_set_state(
@@ -142,7 +141,7 @@ impl<J: JWTGenerator + Sync + Debug + Send> EdgeApiClient for ReqwestEdgeApiClie
         queues: Option<&Vec<String>>,
         sysinfo: &SysInfo,
         maintenance_comments: Option<&str>,
-    ) -> Result<super::WorkerSetStateReturn, Self::Error> {
+    ) -> Result<super::WorkerSetStateReturn, EdgeApiError<Self::Error>> {
         let path = format!("worker/{hostname}");
         let body = WorkerStateBody {
             state,
@@ -151,10 +150,8 @@ impl<J: JWTGenerator + Sync + Debug + Send> EdgeApiClient for ReqwestEdgeApiClie
             sysinfo,
             maintenance_comments,
         };
-        let builder = self.request(Method::PATCH, &path, Some(&body))?;
-        let response = builder.send().await?;
-        let response = self.handle_response(response).await?;
-        Ok(response.json().await?)
+        let response = self.request(Method::PATCH, &path, Some(&body)).await?;
+        Ok(self.deserialize(response).await?)
     }
 
     async fn jobs_fetch(
@@ -162,23 +159,21 @@ impl<J: JWTGenerator + Sync + Debug + Send> EdgeApiClient for ReqwestEdgeApiClie
         hostname: &str,
         queues: Option<&Vec<String>>,
         free_concurrency: usize,
-    ) -> Result<Option<super::EdgeJobFetched>, Self::Error> {
+    ) -> Result<Option<super::EdgeJobFetched>, EdgeApiError<Self::Error>> {
         let path = format!("jobs/fetch/{hostname}");
         let body = WorkerQueuesBody {
             queues,
             free_concurrency,
         };
-        let builder = self.request(Method::POST, &path, Some(&body))?;
-        let response = builder.send().await?;
-        let response = self.handle_response(response).await?;
-        Ok(response.json().await?)
+        let response = self.request(Method::POST, &path, Some(&body)).await?;
+        Ok(self.deserialize(response).await?)
     }
 
     async fn jobs_set_state(
         &mut self,
         key: &airflow_common::models::TaskInstanceKey,
         state: airflow_common::utils::TaskInstanceState,
-    ) -> Result<(), Self::Error> {
+    ) -> Result<(), EdgeApiError<Self::Error>> {
         let path = format!(
             "jobs/state/{}/{}/{}/{}/{}/{}",
             key.dag_id(),
@@ -188,16 +183,14 @@ impl<J: JWTGenerator + Sync + Debug + Send> EdgeApiClient for ReqwestEdgeApiClie
             key.map_index(),
             state
         );
-        let builder = self.request::<()>(Method::PATCH, &path, None)?;
-        let response = builder.send().await?;
-        self.handle_response(response).await?;
+        self.request::<()>(Method::PATCH, &path, None).await?;
         Ok(())
     }
 
     async fn logs_logfile_path(
         &mut self,
         key: &airflow_common::models::TaskInstanceKey,
-    ) -> Result<String, Self::Error> {
+    ) -> Result<String, EdgeApiError<Self::Error>> {
         let path = format!(
             "logs/logfile_path/{}/{}/{}/{}/{}",
             key.dag_id(),
@@ -207,10 +200,8 @@ impl<J: JWTGenerator + Sync + Debug + Send> EdgeApiClient for ReqwestEdgeApiClie
             key.map_index(),
         );
 
-        let builder = self.request::<()>(Method::GET, &path, None)?;
-        let response = builder.send().await?;
-        let response = self.handle_response(response).await?;
-        Ok(response.json().await?)
+        let response = self.request::<()>(Method::GET, &path, None).await?;
+        Ok(self.deserialize(response).await?)
     }
 
     async fn logs_push(
@@ -218,7 +209,7 @@ impl<J: JWTGenerator + Sync + Debug + Send> EdgeApiClient for ReqwestEdgeApiClie
         key: &airflow_common::models::TaskInstanceKey,
         log_chunk_time: &UtcDateTime,
         log_chunk_data: &str,
-    ) -> Result<(), Self::Error> {
+    ) -> Result<(), EdgeApiError<Self::Error>> {
         let path = format!(
             "logs/push/{}/{}/{}/{}/{}",
             key.dag_id(),
@@ -231,9 +222,7 @@ impl<J: JWTGenerator + Sync + Debug + Send> EdgeApiClient for ReqwestEdgeApiClie
             log_chunk_time,
             log_chunk_data,
         };
-        let builder = self.request(Method::POST, &path, Some(&body))?;
-        let response = builder.send().await?;
-        self.handle_response(response).await?;
+        self.request(Method::POST, &path, Some(&body)).await?;
         Ok(())
     }
 }
@@ -550,10 +539,7 @@ mod tests {
         http_mock.assert_async().await;
 
         assert!(result.is_err());
-        assert!(matches!(
-            result.unwrap_err(),
-            ReqwestEdgeApiError::EdgeNotEnabled
-        ));
+        assert!(matches!(result.unwrap_err(), EdgeApiError::EdgeNotEnabled));
     }
 
     #[tokio::test]
@@ -577,7 +563,7 @@ mod tests {
 
         assert!(result.is_err());
         match result {
-            Err(ReqwestEdgeApiError::VersionMismatch(msg)) => {
+            Err(EdgeApiError::VersionMismatch(msg)) => {
                 assert_eq!(msg, "Wrong version!");
             }
             _ => panic!("Expected VersionMismatch error"),
@@ -605,11 +591,10 @@ mod tests {
 
         assert!(result.is_err());
         match result {
-            Err(ReqwestEdgeApiError::Http(code, msg)) => {
-                assert_eq!(code, StatusCode::FORBIDDEN);
-                assert_eq!(msg, Some("Not authorized!".to_string()));
+            Err(EdgeApiError::Other(ReqwestEdgeApiError::Reqwest(e))) => {
+                assert_eq!(e.status(), Some(StatusCode::FORBIDDEN));
             }
-            _ => panic!("Expected VersionMismatch error"),
+            _ => panic!("Expected request error"),
         }
     }
 }
