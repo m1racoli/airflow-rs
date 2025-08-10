@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 license-file = "../LICENSE"
 publish = false
+rust-version.workspace = true
 
 [dependencies]
 airflow-common = { path = "../airflow-common", default-features = false }
