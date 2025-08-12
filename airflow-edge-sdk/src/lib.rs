@@ -5,3 +5,4 @@ extern crate alloc;
 
 pub mod api;
 pub mod models;
+pub mod worker;
