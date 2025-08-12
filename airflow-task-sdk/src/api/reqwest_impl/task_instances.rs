@@ -295,7 +295,7 @@ mod tests {
     static TI_INVALID_STATE_BODY: &str = r#"{"detail":{"reason":"invalid_state","message":"TI was not in the right state","previous_state":"failed"}}"#;
 
     fn client(base_url: &str) -> ReqwestExecutionApiClient {
-        ReqwestExecutionApiClient::new(&base_url, &TOKEN).unwrap()
+        ReqwestExecutionApiClient::new(base_url, &TOKEN).unwrap()
     }
 
     #[tokio::test]
@@ -492,7 +492,7 @@ mod tests {
 
         let result = client
             .task_instances()
-            .succeed(&ID, &WHEN, &vec![], &vec![], None)
+            .succeed(&ID, &WHEN, &[], &[], None)
             .await;
 
         http_mock.assert_async().await;
@@ -515,7 +515,7 @@ mod tests {
 
         let result = client
             .task_instances()
-            .succeed(&ID, &WHEN, &vec![], &vec![], None)
+            .succeed(&ID, &WHEN, &[], &[], None)
             .await;
 
         http_mock.assert_async().await;
@@ -543,7 +543,7 @@ mod tests {
 
         let result = client
             .task_instances()
-            .succeed(&ID, &WHEN, &vec![], &vec![], None)
+            .succeed(&ID, &WHEN, &[], &[], None)
             .await;
 
         http_mock.assert_async().await;
