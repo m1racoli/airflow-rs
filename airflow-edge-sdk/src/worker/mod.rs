@@ -5,6 +5,7 @@ mod runtime;
 
 pub use edge_worker::EdgeWorker;
 pub use edge_worker::EdgeWorkerError;
+pub use edge_worker::WorkerState;
 pub use intercom::{Intercom, IntercomMessage, LocalIntercom};
 pub use job::{EdgeJob, LocalEdgeJob};
 pub use runtime::LocalRuntime;
