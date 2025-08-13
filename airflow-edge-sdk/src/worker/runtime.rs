@@ -8,7 +8,7 @@ cfg_if::cfg_if! {
 
 use crate::{
     api::EdgeJobFetched,
-    worker::{IntercomMessage, LocalEdgeJob, LocalIntercom},
+    worker::{IntercomMessage, LocalEdgeJob, LocalIntercom, WorkerState},
 };
 
 #[trait_variant::make(Runtime: Send)]
@@ -20,4 +20,5 @@ pub trait LocalRuntime {
     fn intercom(&self) -> Self::Intercom;
     fn launch(&self, job: EdgeJobFetched) -> Self::Job;
     fn concurrency(&self) -> usize;
+    async fn on_update(&mut self, state: &WorkerState);
 }

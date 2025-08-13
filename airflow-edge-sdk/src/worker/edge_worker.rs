@@ -24,11 +24,63 @@ pub static EDGE_JOB_POLL_INTERVAL: u64 = 5; // seconds
 #[derive(Debug, Clone)]
 pub struct WorkerState {
     concurrency: usize,
-    free_concurrency: usize,
+    used_concurrency: usize,
     last_heartbeat: UtcDateTime,
     drain: bool,
     maintenance_comments: Option<String>,
     maintenance_mode: bool,
+}
+
+impl WorkerState {
+    pub fn concurrency(&self) -> usize {
+        self.concurrency
+    }
+
+    pub fn free_concurrency(&self) -> usize {
+        self.concurrency - self.used_concurrency
+    }
+
+    pub fn used_concurrency(&self) -> usize {
+        self.used_concurrency
+    }
+
+    pub fn last_heartbeat(&self) -> UtcDateTime {
+        self.last_heartbeat
+    }
+
+    /// Get the system information of the edge worker.
+    pub fn sys_info(&self) -> SysInfo {
+        SysInfo {
+            airflow_version: "3.1.0".to_string(),
+            edge_provider_version: "1.1.3".to_string(),
+            concurrency: self.concurrency(),
+            free_concurrency: self.free_concurrency(),
+        }
+    }
+
+    pub fn get_state(&self) -> EdgeWorkerState {
+        if self.last_heartbeat == MIN_UTC {
+            return EdgeWorkerState::Starting;
+        } else if self.used_concurrency > 0 {
+            if self.drain {
+                return EdgeWorkerState::Terminating;
+            }
+            if self.maintenance_mode {
+                return EdgeWorkerState::MaintenancePending;
+            }
+            return EdgeWorkerState::Running;
+        }
+        if self.drain {
+            if self.maintenance_mode {
+                return EdgeWorkerState::OfflineMaintenance;
+            }
+            return EdgeWorkerState::Offline;
+        }
+        if self.maintenance_mode {
+            return EdgeWorkerState::MaintenanceMode;
+        }
+        EdgeWorkerState::Idle
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -52,8 +104,8 @@ pub struct EdgeWorker<'a, C: LocalEdgeApiClient, T: TimeProvider, R: LocalRuntim
 impl<'a, C: LocalEdgeApiClient, T: TimeProvider, R: LocalRuntime> EdgeWorker<'a, C, T, R> {
     pub fn new(hostname: &'a str, client: C, time_provider: T, runtime: R) -> Self {
         let state = WorkerState {
+            used_concurrency: 0,
             concurrency: runtime.concurrency(),
-            free_concurrency: runtime.concurrency(),
             last_heartbeat: MIN_UTC,
             drain: false,
             maintenance_comments: None,
@@ -77,6 +129,7 @@ impl<'a, C: LocalEdgeApiClient, T: TimeProvider, R: LocalRuntime> EdgeWorker<'a,
     }
 
     pub async fn start(mut self) -> Result<(), EdgeWorkerError<C>> {
+        self.runtime.on_update(&self.state).await;
         info!("Starting worker {} ...", self.hostname);
 
         let registration_response = self
@@ -85,20 +138,20 @@ impl<'a, C: LocalEdgeApiClient, T: TimeProvider, R: LocalRuntime> EdgeWorker<'a,
                 self.hostname,
                 EdgeWorkerState::Starting,
                 self.queues.as_ref(),
-                &self.sys_info(),
+                &self.state.sys_info(),
             )
             .await
             .map_err(EdgeWorkerError::EdgeApi)?;
-        info!("Worker registered.");
         self.state.last_heartbeat = registration_response.last_update;
+        info!("Worker registered.");
 
         self.state_changed = self.heartbeat().await?;
-        self.state.last_heartbeat = self.time_provider.now();
 
         while !self.state.drain || !self.jobs.is_empty() {
             self.do_loop().await?;
         }
 
+        self.runtime.on_update(&self.state).await;
         info!("Stopping worker.");
         self.client
             .worker_set_state(
@@ -110,7 +163,7 @@ impl<'a, C: LocalEdgeApiClient, T: TimeProvider, R: LocalRuntime> EdgeWorker<'a,
                 },
                 0,
                 self.queues.as_ref(),
-                &self.sys_info(),
+                &self.state.sys_info(),
                 self.state.maintenance_comments.as_deref(),
             )
             .await
@@ -123,9 +176,9 @@ impl<'a, C: LocalEdgeApiClient, T: TimeProvider, R: LocalRuntime> EdgeWorker<'a,
     async fn do_loop(&mut self) -> Result<(), EdgeWorkerError<C>> {
         let mut new_job = false;
         let jobs_was_empty = self.jobs.is_empty();
-        let was_full = self.state.free_concurrency == 0;
+        let was_full = self.state.free_concurrency() == 0;
 
-        if !(self.state.drain || self.state.maintenance_mode) && self.state.free_concurrency > 0 {
+        if !(self.state.drain || self.state.maintenance_mode) && self.state.free_concurrency() > 0 {
             new_job = self.fetch_job().await?;
         }
         self.check_running_jobs().await?;
@@ -137,11 +190,11 @@ impl<'a, C: LocalEdgeApiClient, T: TimeProvider, R: LocalRuntime> EdgeWorker<'a,
             || jobs_was_empty != self.jobs.is_empty()
         {
             self.state_changed = self.heartbeat().await?;
-            self.state.last_heartbeat = self.time_provider.now();
         }
 
+        // TODO we also receive messages here, should we skip that?
         // sleep if there was no new job and no free slots we made available in this iteration
-        if !new_job && (!was_full || self.state.free_concurrency == 0) {
+        if !new_job && (!was_full || self.state.free_concurrency() == 0) {
             self.sleep().await;
         }
 
@@ -178,7 +231,8 @@ impl<'a, C: LocalEdgeApiClient, T: TimeProvider, R: LocalRuntime> EdgeWorker<'a,
         }
 
         self.jobs.retain(|job| job.is_running());
-        self.state.free_concurrency = self.state.concurrency - used_concurrency;
+        self.state.used_concurrency = used_concurrency;
+        self.runtime.on_update(&self.state).await;
         Ok(())
     }
 
@@ -189,7 +243,7 @@ impl<'a, C: LocalEdgeApiClient, T: TimeProvider, R: LocalRuntime> EdgeWorker<'a,
             .jobs_fetch(
                 self.hostname,
                 self.queues.as_ref(),
-                self.state.free_concurrency,
+                self.state.free_concurrency(),
             )
             .await
             .map_err(EdgeWorkerError::EdgeApi)?;
@@ -240,12 +294,13 @@ impl<'a, C: LocalEdgeApiClient, T: TimeProvider, R: LocalRuntime> EdgeWorker<'a,
                     self.jobs.iter_mut().for_each(|j| j.abort());
                 }
             }
+            self.runtime.on_update(&self.state).await;
         }
     }
 
     async fn heartbeat(&mut self) -> Result<bool, EdgeWorkerError<C>> {
         debug!("Sending heartbeat");
-        let state = self.get_state();
+        let state = self.state.get_state();
 
         let worker_info = match self
             .client
@@ -254,7 +309,7 @@ impl<'a, C: LocalEdgeApiClient, T: TimeProvider, R: LocalRuntime> EdgeWorker<'a,
                 state,
                 self.jobs.len(),
                 self.queues.as_ref(),
-                &self.sys_info(),
+                &self.state.sys_info(),
                 self.state.maintenance_comments.as_deref(),
             )
             .await
@@ -289,38 +344,8 @@ impl<'a, C: LocalEdgeApiClient, T: TimeProvider, R: LocalRuntime> EdgeWorker<'a,
         }
 
         info!("Heartbeat sent, state: {:?}", worker_info.state);
+        self.state.last_heartbeat = self.time_provider.now();
+        self.runtime.on_update(&self.state).await;
         Ok(worker_info.state != state)
-    }
-
-    /// Get the system information of the edge worker.
-    fn sys_info(&self) -> SysInfo {
-        SysInfo {
-            airflow_version: "3.1.0".to_string(),
-            edge_provider_version: "1.1.3".to_string(),
-            concurrency: self.state.concurrency,
-            free_concurrency: self.state.free_concurrency,
-        }
-    }
-
-    fn get_state(&self) -> EdgeWorkerState {
-        if !self.jobs.is_empty() {
-            if self.state.drain {
-                return EdgeWorkerState::Terminating;
-            }
-            if self.state.maintenance_mode {
-                return EdgeWorkerState::MaintenancePending;
-            }
-            return EdgeWorkerState::Running;
-        }
-        if self.state.drain {
-            if self.state.maintenance_mode {
-                return EdgeWorkerState::OfflineMaintenance;
-            }
-            return EdgeWorkerState::Offline;
-        }
-        if self.state.maintenance_mode {
-            return EdgeWorkerState::MaintenanceMode;
-        }
-        EdgeWorkerState::Idle
     }
 }
