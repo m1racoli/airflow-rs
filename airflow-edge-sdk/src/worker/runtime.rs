@@ -19,4 +19,5 @@ pub trait LocalRuntime {
     async fn sleep(&mut self, duration: time::Duration) -> Option<IntercomMessage>;
     fn intercom(&self) -> Self::Intercom;
     fn launch(&self, job: EdgeJobFetched) -> Self::Job;
+    fn concurrency(&self) -> usize;
 }

@@ -31,7 +31,6 @@ pub enum EdgeWorkerError<C: LocalEdgeApiClient> {
 pub struct EdgeWorker<'a, C: LocalEdgeApiClient, T: TimeProvider, R: LocalRuntime> {
     hostname: &'a str,
     client: C,
-    concurrency: usize,
     free_concurrency: usize,
     last_heartbeat: UtcDateTime,
     state_changed: bool,
@@ -49,8 +48,7 @@ impl<'a, C: LocalEdgeApiClient, T: TimeProvider, R: LocalRuntime> EdgeWorker<'a,
         EdgeWorker {
             hostname,
             client,
-            concurrency: 1,
-            free_concurrency: 1,
+            free_concurrency: runtime.concurrency(),
             last_heartbeat: MIN_UTC,
             state_changed: false,
             drain: false,
@@ -65,12 +63,6 @@ impl<'a, C: LocalEdgeApiClient, T: TimeProvider, R: LocalRuntime> EdgeWorker<'a,
 
     pub fn with_queues(mut self, queues: Option<Vec<String>>) -> Self {
         self.queues = queues;
-        self
-    }
-
-    pub fn with_concurrency(mut self, concurrency: usize) -> Self {
-        self.concurrency = concurrency;
-        self.free_concurrency = concurrency;
         self
     }
 
@@ -177,7 +169,7 @@ impl<'a, C: LocalEdgeApiClient, T: TimeProvider, R: LocalRuntime> EdgeWorker<'a,
         }
 
         self.jobs.retain(|job| job.is_running());
-        self.free_concurrency = self.concurrency - used_concurrency;
+        self.free_concurrency = self.runtime.concurrency() - used_concurrency;
         Ok(())
     }
 
@@ -292,7 +284,7 @@ impl<'a, C: LocalEdgeApiClient, T: TimeProvider, R: LocalRuntime> EdgeWorker<'a,
         SysInfo {
             airflow_version: "3.1.0".to_string(),
             edge_provider_version: "1.1.3".to_string(),
-            concurrency: self.concurrency,
+            concurrency: self.runtime.concurrency(),
             free_concurrency: self.free_concurrency,
         }
     }
