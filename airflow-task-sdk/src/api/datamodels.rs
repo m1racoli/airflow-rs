@@ -5,6 +5,7 @@ cfg_if::cfg_if! {
         extern crate alloc;
         use alloc::string::String;
         use alloc::collections::BTreeMap;
+        use alloc::vec::Vec;
     }
 }
 
