@@ -45,6 +45,7 @@ name = "airflow-edge-sdk"
 version = "0.1.0"
 dependencies = [
  "airflow-common",
+ "airflow-task-sdk",
  "cfg-if",
  "httpmock",
  "log",

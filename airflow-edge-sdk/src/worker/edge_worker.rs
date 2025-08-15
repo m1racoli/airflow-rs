@@ -16,6 +16,7 @@ use crate::worker::{IntercomMessage, LocalEdgeJob, LocalRuntime};
 use airflow_common::datetime::{MIN_UTC, TimeProvider, UtcDateTime};
 use airflow_common::models::{TaskInstanceKey, TaskInstanceLike};
 use airflow_common::utils::TaskInstanceState;
+use airflow_task_sdk::definitions::DagBag;
 use log::{debug, error, info};
 
 pub static EDGE_HEARTBEAT_INTERVAL: u64 = 30; // seconds
@@ -89,8 +90,7 @@ pub enum EdgeWorkerError<C: LocalEdgeApiClient> {
     EdgeApi(EdgeApiError<C::Error>),
 }
 
-#[derive(Debug)]
-pub struct EdgeWorker<'a, C: LocalEdgeApiClient, T: TimeProvider, R: LocalRuntime> {
+pub struct EdgeWorker<'a, 'dags, C: LocalEdgeApiClient, T: TimeProvider, R: LocalRuntime<'dags>> {
     hostname: &'a str,
     client: C,
     state_changed: bool,
@@ -99,10 +99,19 @@ pub struct EdgeWorker<'a, C: LocalEdgeApiClient, T: TimeProvider, R: LocalRuntim
     time_provider: T,
     runtime: R,
     state: WorkerState,
+    dag_bag: &'dags DagBag,
 }
 
-impl<'a, C: LocalEdgeApiClient, T: TimeProvider, R: LocalRuntime> EdgeWorker<'a, C, T, R> {
-    pub fn new(hostname: &'a str, client: C, time_provider: T, runtime: R) -> Self {
+impl<'a, 'dags, C: LocalEdgeApiClient, T: TimeProvider, R: LocalRuntime<'dags>>
+    EdgeWorker<'a, 'dags, C, T, R>
+{
+    pub fn new(
+        hostname: &'a str,
+        client: C,
+        time_provider: T,
+        runtime: R,
+        dag_bag: &'dags DagBag,
+    ) -> Self {
         let state = WorkerState {
             used_concurrency: 0,
             concurrency: runtime.concurrency(),
@@ -120,6 +129,7 @@ impl<'a, C: LocalEdgeApiClient, T: TimeProvider, R: LocalRuntime> EdgeWorker<'a,
             queues: None,
             time_provider,
             runtime,
+            dag_bag,
         }
     }
 
@@ -267,7 +277,7 @@ impl<'a, C: LocalEdgeApiClient, T: TimeProvider, R: LocalRuntime> EdgeWorker<'a,
     }
 
     async fn launch_job(&mut self, job: EdgeJobFetched) -> () {
-        let job = self.runtime.launch(job);
+        let job = self.runtime.launch(job, self.dag_bag);
         self.jobs.push(job);
     }
 
