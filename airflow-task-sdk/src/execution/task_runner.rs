@@ -10,7 +10,7 @@ use airflow_common::datetime::TimeProvider;
 
 use crate::{
     api::{ExecutionApiClient, ExecutionApiError, TaskInstanceApiClient},
-    definitions::{Context, Dag, DagBag, Task, TaskError},
+    definitions::{Context, DagBag, Task, TaskError},
     execution::{ExecutionResultTIState, RuntimeTaskInstance, StartupDetails},
 };
 
@@ -41,7 +41,7 @@ impl<C: ExecutionApiClient, T: TimeProvider> TaskRunner<C, T> {
 
     async fn run(
         &self,
-        mut task: impl Task,
+        task: &Task,
         ti: &mut RuntimeTaskInstance,
         context: &Context,
     ) -> Result<(ExecutionResultTIState, Option<TaskError>), ExecutionError<C>> {
@@ -80,10 +80,10 @@ impl<C: ExecutionApiClient, T: TimeProvider> TaskRunner<C, T> {
         // - run callbacks
     }
 
-    async fn _main<D: DagBag>(
+    async fn _main(
         self,
         what: StartupDetails,
-        dag_bag: D,
+        dag_bag: &DagBag,
     ) -> Result<ExecutionResultTIState, ExecutionError<C>> {
         let mut ti = RuntimeTaskInstance::from(what);
         let context = ti.get_template_context();
@@ -91,6 +91,7 @@ impl<C: ExecutionApiClient, T: TimeProvider> TaskRunner<C, T> {
         let dag_id = ti.dag_id.clone();
         let task_id = ti.task_id.clone();
 
+        // TODO log errors if not found
         let dag = dag_bag
             .get_dag(&dag_id)
             .ok_or_else(|| ExecutionError::DagNotFound(ti.dag_id.clone()))?;
@@ -106,10 +107,10 @@ impl<C: ExecutionApiClient, T: TimeProvider> TaskRunner<C, T> {
 
     #[cfg(not(feature = "tracing"))]
     /// Perform the actual task execution with the given startup details
-    pub async fn main<D: DagBag>(
+    pub async fn main(
         self,
         what: StartupDetails,
-        dag_bag: D,
+        dag_bag: &DagBag,
     ) -> Result<ExecutionResultTIState, ExecutionError<C>> {
         self._main(what, dag_bag).await
     }
@@ -119,10 +120,10 @@ impl<C: ExecutionApiClient, T: TimeProvider> TaskRunner<C, T> {
     ///
     /// The task execution is instrumented with a special tracing span
     /// which allows us to filter task logs.
-    pub async fn main<D: DagBag>(
+    pub async fn main(
         self,
         what: StartupDetails,
-        dag_bag: D,
+        dag_bag: &DagBag,
     ) -> Result<ExecutionResultTIState, ExecutionError<C>> {
         use airflow_common::models::TaskInstanceLike;
         use tracing::{Instrument, info_span};
