@@ -12,8 +12,8 @@ use crate::{
 };
 use airflow_task_sdk::definitions::DagBag;
 
-#[trait_variant::make(Runtime: Send)]
-pub trait LocalRuntime<'dags> {
+#[trait_variant::make(WorkerRuntime: Send)]
+pub trait LocalWorkerRuntime<'dags> {
     type Job: LocalEdgeJob;
     type Intercom: LocalIntercom;
 

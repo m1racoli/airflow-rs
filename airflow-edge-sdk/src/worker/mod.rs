@@ -8,5 +8,5 @@ pub use edge_worker::EdgeWorkerError;
 pub use edge_worker::WorkerState;
 pub use intercom::{Intercom, IntercomMessage, LocalIntercom};
 pub use job::{EdgeJob, LocalEdgeJob};
-pub use runtime::LocalRuntime;
-pub use runtime::Runtime;
+pub use runtime::LocalWorkerRuntime;
+pub use runtime::WorkerRuntime;

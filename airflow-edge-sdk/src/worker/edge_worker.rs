@@ -12,7 +12,7 @@ cfg_if::cfg_if! {
 
 use crate::api::{EdgeApiError, EdgeJobFetched, LocalEdgeApiClient};
 use crate::models::{EdgeWorkerState, SysInfo};
-use crate::worker::{IntercomMessage, LocalEdgeJob, LocalRuntime};
+use crate::worker::{IntercomMessage, LocalEdgeJob, LocalWorkerRuntime};
 use airflow_common::datetime::{MIN_UTC, TimeProvider, UtcDateTime};
 use airflow_common::models::{TaskInstanceKey, TaskInstanceLike};
 use airflow_common::utils::TaskInstanceState;
@@ -90,7 +90,7 @@ pub enum EdgeWorkerError<C: LocalEdgeApiClient> {
     EdgeApi(EdgeApiError<C::Error>),
 }
 
-pub struct EdgeWorker<'dags, C: LocalEdgeApiClient, T: TimeProvider, R: LocalRuntime<'dags>> {
+pub struct EdgeWorker<'dags, C: LocalEdgeApiClient, T: TimeProvider, R: LocalWorkerRuntime<'dags>> {
     client: C,
     state_changed: bool,
     jobs: Vec<R::Job>,
@@ -101,7 +101,7 @@ pub struct EdgeWorker<'dags, C: LocalEdgeApiClient, T: TimeProvider, R: LocalRun
     dag_bag: &'dags DagBag,
 }
 
-impl<'dags, C: LocalEdgeApiClient, T: TimeProvider, R: LocalRuntime<'dags>>
+impl<'dags, C: LocalEdgeApiClient, T: TimeProvider, R: LocalWorkerRuntime<'dags>>
     EdgeWorker<'dags, C, T, R>
 {
     pub fn new(client: C, time_provider: T, runtime: R, dag_bag: &'dags DagBag) -> Self {
