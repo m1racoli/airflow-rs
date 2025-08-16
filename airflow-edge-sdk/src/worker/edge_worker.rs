@@ -90,8 +90,7 @@ pub enum EdgeWorkerError<C: LocalEdgeApiClient> {
     EdgeApi(EdgeApiError<C::Error>),
 }
 
-pub struct EdgeWorker<'a, 'dags, C: LocalEdgeApiClient, T: TimeProvider, R: LocalRuntime<'dags>> {
-    hostname: &'a str,
+pub struct EdgeWorker<'dags, C: LocalEdgeApiClient, T: TimeProvider, R: LocalRuntime<'dags>> {
     client: C,
     state_changed: bool,
     jobs: Vec<R::Job>,
@@ -102,16 +101,10 @@ pub struct EdgeWorker<'a, 'dags, C: LocalEdgeApiClient, T: TimeProvider, R: Loca
     dag_bag: &'dags DagBag,
 }
 
-impl<'a, 'dags, C: LocalEdgeApiClient, T: TimeProvider, R: LocalRuntime<'dags>>
-    EdgeWorker<'a, 'dags, C, T, R>
+impl<'dags, C: LocalEdgeApiClient, T: TimeProvider, R: LocalRuntime<'dags>>
+    EdgeWorker<'dags, C, T, R>
 {
-    pub fn new(
-        hostname: &'a str,
-        client: C,
-        time_provider: T,
-        runtime: R,
-        dag_bag: &'dags DagBag,
-    ) -> Self {
+    pub fn new(client: C, time_provider: T, runtime: R, dag_bag: &'dags DagBag) -> Self {
         let state = WorkerState {
             used_concurrency: 0,
             concurrency: runtime.concurrency(),
@@ -121,7 +114,6 @@ impl<'a, 'dags, C: LocalEdgeApiClient, T: TimeProvider, R: LocalRuntime<'dags>>
             maintenance_mode: false,
         };
         EdgeWorker {
-            hostname,
             client,
             state,
             state_changed: false,
@@ -140,12 +132,12 @@ impl<'a, 'dags, C: LocalEdgeApiClient, T: TimeProvider, R: LocalRuntime<'dags>>
 
     pub async fn start(mut self) -> Result<(), EdgeWorkerError<C>> {
         self.runtime.on_update(&self.state).await;
-        info!("Starting worker {} ...", self.hostname);
+        info!("Starting worker {} ...", self.runtime.hostname());
 
         let registration_response = self
             .client
             .worker_register(
-                self.hostname,
+                self.runtime.hostname(),
                 EdgeWorkerState::Starting,
                 self.queues.as_ref(),
                 &self.state.sys_info(),
@@ -165,7 +157,7 @@ impl<'a, 'dags, C: LocalEdgeApiClient, T: TimeProvider, R: LocalRuntime<'dags>>
         info!("Stopping worker.");
         self.client
             .worker_set_state(
-                self.hostname,
+                self.runtime.hostname(),
                 if self.state.maintenance_mode {
                     EdgeWorkerState::OfflineMaintenance
                 } else {
@@ -251,7 +243,7 @@ impl<'a, 'dags, C: LocalEdgeApiClient, T: TimeProvider, R: LocalRuntime<'dags>>
         let edge_job = self
             .client
             .jobs_fetch(
-                self.hostname,
+                self.runtime.hostname(),
                 self.queues.as_ref(),
                 self.state.free_concurrency(),
             )
@@ -315,7 +307,7 @@ impl<'a, 'dags, C: LocalEdgeApiClient, T: TimeProvider, R: LocalRuntime<'dags>>
         let worker_info = match self
             .client
             .worker_set_state(
-                self.hostname,
+                self.runtime.hostname(),
                 state,
                 self.jobs.len(),
                 self.queues.as_ref(),

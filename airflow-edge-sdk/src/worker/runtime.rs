@@ -22,4 +22,5 @@ pub trait LocalRuntime<'dags> {
     fn launch(&self, job: EdgeJobFetched, dag_bag: &'dags DagBag) -> Self::Job;
     fn concurrency(&self) -> usize;
     async fn on_update(&mut self, state: &WorkerState);
+    fn hostname(&self) -> &str;
 }
