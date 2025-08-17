@@ -9,6 +9,7 @@ rust-version.workspace = true
 [dependencies]
 airflow-common = { path = "../airflow-common", default-features = false }
 cfg-if = "1"
+log = { version = "0.4" }
 serde = { version = "1", default-features = false, features = ["derive", "alloc"] }
 serde_json = { version = "1", default-features = false, features = ["alloc"] }
 thiserror = { version = "2", default-features = false }

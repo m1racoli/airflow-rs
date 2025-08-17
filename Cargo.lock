@@ -64,6 +64,7 @@ dependencies = [
  "airflow-common",
  "cfg-if",
  "httpmock",
+ "log",
  "reqwest",
  "serde",
  "serde_json",
