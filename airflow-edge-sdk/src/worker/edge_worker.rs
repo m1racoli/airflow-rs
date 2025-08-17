@@ -90,7 +90,7 @@ pub enum EdgeWorkerError<C: LocalEdgeApiClient> {
     EdgeApi(EdgeApiError<C::Error>),
 }
 
-pub struct EdgeWorker<'dags, C: LocalEdgeApiClient, T: TimeProvider, R: LocalWorkerRuntime<'dags>> {
+pub struct EdgeWorker<C: LocalEdgeApiClient, T: TimeProvider, R: LocalWorkerRuntime> {
     client: C,
     state_changed: bool,
     jobs: Vec<R::Job>,
@@ -98,13 +98,11 @@ pub struct EdgeWorker<'dags, C: LocalEdgeApiClient, T: TimeProvider, R: LocalWor
     time_provider: T,
     runtime: R,
     state: WorkerState,
-    dag_bag: &'dags DagBag,
+    dag_bag: &'static DagBag,
 }
 
-impl<'dags, C: LocalEdgeApiClient, T: TimeProvider, R: LocalWorkerRuntime<'dags>>
-    EdgeWorker<'dags, C, T, R>
-{
-    pub fn new(client: C, time_provider: T, runtime: R, dag_bag: &'dags DagBag) -> Self {
+impl<C: LocalEdgeApiClient, T: TimeProvider, R: LocalWorkerRuntime> EdgeWorker<C, T, R> {
+    pub fn new(client: C, time_provider: T, runtime: R, dag_bag: &'static DagBag) -> Self {
         let state = WorkerState {
             used_concurrency: 0,
             concurrency: runtime.concurrency(),
