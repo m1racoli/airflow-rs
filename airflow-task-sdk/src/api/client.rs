@@ -14,7 +14,7 @@ cfg_if::cfg_if! {
 use airflow_common::{
     datetime::UtcDateTime,
     executors::UniqueTaskInstanceId,
-    utils::{MapIndex, TaskInstanceState, TerminalTIStateNonSuccess},
+    utils::{MapIndex, SecretString, TaskInstanceState, TerminalTIStateNonSuccess},
 };
 use serde::Serialize;
 
@@ -30,6 +30,14 @@ pub trait ExecutionApiClient {
     type Error: error::Error;
 
     fn task_instances(&self) -> impl TaskInstanceApiClient<Error = Self::Error> + Send;
+}
+
+/// A factory which builds an execution API client for the given base URL and token.
+pub trait ExecutionApiClientFactory {
+    type Client: ExecutionApiClient;
+    type Error: error::Error;
+
+    fn create(&self, base_url: &str, token: &SecretString) -> Result<Self::Client, Self::Error>;
 }
 
 /// An umbrella error type for the Execution API.

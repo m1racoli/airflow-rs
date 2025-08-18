@@ -11,7 +11,10 @@ cfg_if::cfg_if! {
 }
 
 use crate::{
-    api::{ExecutionApiClient, ExecutionApiError, TaskInstanceApiClient, TaskInstanceApiError},
+    api::{
+        ExecutionApiClient, ExecutionApiClientFactory, ExecutionApiError, TaskInstanceApiClient,
+        TaskInstanceApiError,
+    },
     definitions::DagBag,
     execution::{ExecutionResultTIState, LocalTaskHandle, LocalTaskRuntime, StartupDetails},
 };
@@ -25,18 +28,20 @@ use log::{debug, error, info, warn};
 static HEARTBEAT_TIMEOUT: u64 = 300; // seconds
 static MIN_HEARTBEAT_INTERVAL: u64 = 5; // seconds
 static MAX_FAILED_HEARTBEATS: usize = 3;
+static EXECUTION_API_SERVER_URL: &str = "http://localhost:28080/execution";
 
-pub async fn supervise<C, T, R>(
+pub async fn supervise<F, T, R>(
     task: ExecuteTask,
-    client: C,
+    client_factory: F,
     time_provider: T,
     dag_bag: &'static DagBag,
     runtime: &R,
 ) -> bool
 where
-    C: ExecutionApiClient + Clone + 'static,
+    F: ExecutionApiClientFactory,
+    F::Client: Clone + 'static,
     T: TimeProvider + Clone + 'static,
-    R: LocalTaskRuntime<C, T>,
+    R: LocalTaskRuntime<F::Client, T>,
 {
     let ti = task.ti();
     debug!("Supervising task: {:?}", ti);
@@ -45,10 +50,18 @@ where
     // logging setup?
     // init secrets backend?
 
+    let client = match client_factory.create(EXECUTION_API_SERVER_URL, task.token()) {
+        Ok(c) => c,
+        Err(e) => {
+            error!("Failed to create execution API client: {}", e);
+            return false;
+        }
+    };
+
     let active_task = match ActivityTask::start(ti, client, dag_bag, time_provider, runtime).await {
         Ok(task) => task,
         Err(e) => {
-            error!("{}", e);
+            error!("Failed to start task: {}", e);
             return false;
         }
     };
@@ -58,7 +71,7 @@ where
         Err(e) => match e {
             ActivityError::ServerTerminated => "SERVER_TERMINATED".to_string(),
             e => {
-                error!("{}", e);
+                error!("Failed to complete task: {}", e);
                 return false;
             }
         },

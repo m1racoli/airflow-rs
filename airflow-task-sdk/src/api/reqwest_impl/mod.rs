@@ -2,7 +2,7 @@ mod task_instances;
 
 use std::sync::{Arc, RwLock};
 
-use crate::api::{ExecutionApiClient, TaskInstanceApiClient};
+use crate::api::{ExecutionApiClient, TaskInstanceApiClient, client::ExecutionApiClientFactory};
 use airflow_common::utils::SecretString;
 use reqwest::{Method, header::HeaderMap};
 
@@ -63,5 +63,17 @@ impl ExecutionApiClient for ReqwestExecutionApiClient {
 
     fn task_instances(&self) -> impl TaskInstanceApiClient<Error = Self::Error> + Send {
         ReqwestTaskInstanceApiClient(self.clone())
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct ReqwestExecutionApiClientFactory;
+
+impl ExecutionApiClientFactory for ReqwestExecutionApiClientFactory {
+    type Client = ReqwestExecutionApiClient;
+    type Error = reqwest::Error;
+
+    fn create(&self, base_url: &str, token: &SecretString) -> Result<Self::Client, Self::Error> {
+        ReqwestExecutionApiClient::new(base_url, token)
     }
 }
