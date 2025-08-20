@@ -1,9 +1,9 @@
 use std::sync::{Arc, RwLock};
 
 use crate::api::{
-    AssetProfile, ExecutionApiClient, ExecutionApiError, InactiveAssetsResponse,
-    PrevSuccessfulDagRunResponse, TICount, TIRunContext, TaskRescheduleStartDate,
-    TaskStatesResponse, client::ExecutionApiClientFactory,
+    AssetProfile, ExecutionApiClient, ExecutionApiClientFactory, ExecutionApiError,
+    InactiveAssetsResponse, PrevSuccessfulDagRunResponse, TICount, TIRunContext,
+    TaskRescheduleStartDate, TaskStatesResponse,
 };
 use airflow_common::{
     datetime::UtcDateTime,
@@ -13,6 +13,18 @@ use airflow_common::{
 use reqwest::{Method, Response, StatusCode, header::HeaderMap};
 
 use serde::Serialize;
+
+#[derive(Debug, Clone, Default)]
+pub struct ReqwestExecutionApiClientFactory;
+
+impl ExecutionApiClientFactory for ReqwestExecutionApiClientFactory {
+    type Client = ReqwestExecutionApiClient;
+    type Error = reqwest::Error;
+
+    fn create(&self, base_url: &str, token: &SecretString) -> Result<Self::Client, Self::Error> {
+        ReqwestExecutionApiClient::new(base_url, token)
+    }
+}
 
 static API_VERSION: &str = "2025-08-10";
 
@@ -296,18 +308,6 @@ struct TISuccessStatePayload<'a> {
 struct TIHeartbeatInfo<'a> {
     hostname: &'a str,
     pid: u32,
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct ReqwestExecutionApiClientFactory;
-
-impl ExecutionApiClientFactory for ReqwestExecutionApiClientFactory {
-    type Client = ReqwestExecutionApiClient;
-    type Error = reqwest::Error;
-
-    fn create(&self, base_url: &str, token: &SecretString) -> Result<Self::Client, Self::Error> {
-        ReqwestExecutionApiClient::new(base_url, token)
-    }
 }
 
 #[cfg(test)]

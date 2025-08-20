@@ -12,7 +12,7 @@ cfg_if::cfg_if! {
 use airflow_common::{
     datetime::UtcDateTime,
     executors::UniqueTaskInstanceId,
-    utils::{MapIndex, SecretString, TaskInstanceState, TerminalTIStateNonSuccess},
+    utils::{MapIndex, TaskInstanceState, TerminalTIStateNonSuccess},
 };
 use serde::Serialize;
 
@@ -23,6 +23,17 @@ use crate::api::{
         TaskRescheduleStartDate, TaskStatesResponse,
     },
 };
+
+/// An error which can occur when interacting with the TaskInstance API.
+#[derive(thiserror::Error, Debug)]
+pub enum ExecutionApiError<E: error::Error> {
+    #[error("Not Found: {0}")]
+    NotFound(String), // TODO do we want to retrieve detailed reason and message from error response?
+    #[error("Conflict: {0}")]
+    Conflict(String),
+    #[error(transparent)]
+    Other(#[from] E),
+}
 
 #[trait_variant::make(ExecutionApiClient: Send)]
 pub trait LocalExecutionApiClient {
@@ -153,24 +164,4 @@ pub trait LocalExecutionApiClient {
         &self,
         id: &UniqueTaskInstanceId,
     ) -> Result<InactiveAssetsResponse, ExecutionApiError<Self::Error>>;
-}
-
-/// A factory which builds an execution API client for the given base URL and token.
-#[trait_variant::make(ExecutionApiClientFactory: Send)]
-pub trait LocalExecutionApiClientFactory {
-    type Client: LocalExecutionApiClient;
-    type Error: error::Error;
-
-    fn create(&self, base_url: &str, token: &SecretString) -> Result<Self::Client, Self::Error>;
-}
-
-/// An error which can occur when interacting with the TaskInstance API.
-#[derive(thiserror::Error, Debug)]
-pub enum ExecutionApiError<E: error::Error> {
-    #[error("Not Found: {0}")]
-    NotFound(String), // TODO do we want to retrieve detailed reason and message from error response?
-    #[error("Conflict: {0}")]
-    Conflict(String),
-    #[error(transparent)]
-    Other(#[from] E),
 }
