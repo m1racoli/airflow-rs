@@ -5,4 +5,5 @@ members = [
     "airflow-common",
     "airflow-edge-sdk",
     "airflow-task-sdk",
+    "examples",
 ]
