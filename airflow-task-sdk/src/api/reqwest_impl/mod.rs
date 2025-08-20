@@ -61,7 +61,7 @@ impl ReqwestExecutionApiClient {
 impl ExecutionApiClient for ReqwestExecutionApiClient {
     type Error = reqwest::Error;
 
-    fn task_instances(&self) -> impl TaskInstanceApiClient<Error = Self::Error> + Send {
+    fn task_instances(&self) -> impl TaskInstanceApiClient<Error = Self::Error> {
         ReqwestTaskInstanceApiClient(self.clone())
     }
 }
