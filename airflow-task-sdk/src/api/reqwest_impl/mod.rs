@@ -1,16 +1,18 @@
-mod task_instances;
-
 use std::sync::{Arc, RwLock};
 
 use crate::api::{
-    ExecutionApiClient, TaskInstanceApiClient, TaskInstanceApiError,
+    AssetProfile, ExecutionApiClient, InactiveAssetsResponse, PrevSuccessfulDagRunResponse,
+    TICount, TIRunContext, TaskInstanceApiError, TaskRescheduleStartDate, TaskStatesResponse,
     client::ExecutionApiClientFactory,
 };
-use airflow_common::utils::SecretString;
+use airflow_common::{
+    datetime::UtcDateTime,
+    executors::UniqueTaskInstanceId,
+    utils::{MapIndex, SecretString, TaskInstanceState, TerminalTIStateNonSuccess},
+};
 use reqwest::{Method, Response, StatusCode, header::HeaderMap};
 
 use serde::Serialize;
-use task_instances::ReqwestTaskInstanceApiClient;
 
 static API_VERSION: &str = "2025-08-10";
 
@@ -78,9 +80,222 @@ impl ReqwestExecutionApiClient {
 impl ExecutionApiClient for ReqwestExecutionApiClient {
     type Error = reqwest::Error;
 
-    fn task_instances(&self) -> impl TaskInstanceApiClient<Error = Self::Error> {
-        ReqwestTaskInstanceApiClient(self.clone())
+    async fn task_instances_start(
+        &self,
+        id: &UniqueTaskInstanceId,
+        hostname: &str,
+        unixname: &str,
+        pid: u32,
+        when: &UtcDateTime,
+    ) -> Result<TIRunContext, TaskInstanceApiError<Self::Error>> {
+        let path = format!("task-instances/{id}/run");
+        let body = TIEnterRunningPayload {
+            state: TaskInstanceState::Running,
+            hostname,
+            unixname,
+            pid,
+            start_date: when,
+        };
+        let response = self
+            .request(Method::PATCH, &path, Some(&body))?
+            .send()
+            .await?;
+        let response = self.handle_response(response).await?;
+        Ok(response.json().await?)
     }
+
+    async fn task_instances_finish(
+        &self,
+        id: &UniqueTaskInstanceId,
+        state: TerminalTIStateNonSuccess,
+        when: &UtcDateTime,
+        rendered_map_index: Option<&str>,
+    ) -> Result<(), TaskInstanceApiError<Self::Error>> {
+        let path = format!("task-instances/{id}/state");
+        let body = TITerminalStatePayload {
+            state,
+            end_date: when,
+            rendered_map_index,
+        };
+        let response = self
+            .request(Method::PATCH, &path, Some(&body))?
+            .send()
+            .await?;
+        self.handle_response(response).await?;
+        Ok(())
+    }
+
+    async fn task_instances_retry(
+        &self,
+        _id: &UniqueTaskInstanceId,
+        _when: &UtcDateTime,
+        _rendered_map_index: Option<&str>,
+    ) -> Result<(), TaskInstanceApiError<Self::Error>> {
+        todo!()
+    }
+
+    async fn task_instances_succeed(
+        &self,
+        id: &UniqueTaskInstanceId,
+        when: &UtcDateTime,
+        task_outlets: &[AssetProfile],
+        outlet_events: &[()],
+        rendered_map_index: Option<&str>,
+    ) -> Result<(), TaskInstanceApiError<Self::Error>> {
+        let path = format!("task-instances/{id}/state");
+        let body = TISuccessStatePayload {
+            state: TaskInstanceState::Success,
+            end_date: when,
+            task_outlets,
+            outlet_events,
+            rendered_map_index,
+        };
+        let response = self
+            .request(Method::PATCH, &path, Some(&body))?
+            .send()
+            .await?;
+        self.handle_response(response).await?;
+        Ok(())
+    }
+
+    async fn task_instances_defer<T: Serialize + Sync, N: Serialize + Sync>(
+        &self,
+        _id: &UniqueTaskInstanceId,
+        _classpath: &str,
+        _trigger_kwargs: &T,
+        _trigger_timeout: u64,
+        _next_method: &str,
+        _next_kwargs: &N,
+        _rendered_map_index: Option<&str>,
+    ) -> Result<(), TaskInstanceApiError<Self::Error>> {
+        todo!()
+    }
+
+    async fn task_instances_reschedule(
+        &self,
+        _id: &UniqueTaskInstanceId,
+        _reschedule_date: &UtcDateTime,
+        _end_date: &UtcDateTime,
+    ) -> Result<(), TaskInstanceApiError<Self::Error>> {
+        todo!()
+    }
+
+    async fn task_instances_heartbeat(
+        &self,
+        id: &UniqueTaskInstanceId,
+        hostname: &str,
+        pid: u32,
+    ) -> Result<(), TaskInstanceApiError<Self::Error>> {
+        let path = format!("task-instances/{id}/heartbeat");
+        let body = TIHeartbeatInfo { hostname, pid };
+        let response = self
+            .request(Method::PUT, &path, Some(&body))?
+            .send()
+            .await?;
+        let response = self.handle_response(response).await?;
+
+        if let Some(token) = response.headers().get("Refreshed-API-Token") {
+            let token = token.to_str().unwrap();
+            let mut w = self.token.write().unwrap();
+            *w = token.into();
+            // TODO debug logging
+        }
+        Ok(())
+    }
+
+    async fn task_instances_skip_downstream_tasks(
+        &self,
+        _id: &UniqueTaskInstanceId,
+        _tasks: &[(String, MapIndex)],
+    ) -> Result<(), TaskInstanceApiError<Self::Error>> {
+        todo!()
+    }
+
+    async fn task_instances_set_rtif<F: Serialize + Sync>(
+        &self,
+        _id: &UniqueTaskInstanceId,
+        _fields: &F,
+    ) -> Result<(), TaskInstanceApiError<Self::Error>> {
+        todo!()
+    }
+
+    async fn task_instances_get_previous_successful_dagrun(
+        &self,
+        _id: &UniqueTaskInstanceId,
+    ) -> Result<PrevSuccessfulDagRunResponse, TaskInstanceApiError<Self::Error>> {
+        todo!()
+    }
+
+    async fn task_instances_get_reschedule_start_date(
+        &self,
+        _id: &UniqueTaskInstanceId,
+        _try_number: usize,
+    ) -> Result<TaskRescheduleStartDate, TaskInstanceApiError<Self::Error>> {
+        todo!()
+    }
+
+    async fn task_instances_get_count(
+        &self,
+        _dag_id: &str,
+        _map_index: Option<airflow_common::utils::MapIndex>,
+        _task_ids: Option<&Vec<String>>,
+        _task_group_id: Option<&str>,
+        _logical_dates: Option<&Vec<UtcDateTime>>,
+        _run_ids: Option<&Vec<String>>,
+        _states: Option<&Vec<TaskInstanceState>>,
+    ) -> Result<TICount, TaskInstanceApiError<Self::Error>> {
+        todo!()
+    }
+
+    async fn task_instances_get_task_states(
+        &self,
+        _dag_id: &str,
+        _map_index: Option<airflow_common::utils::MapIndex>,
+        _task_ids: Option<&Vec<String>>,
+        _task_group_id: Option<&str>,
+        _logical_dates: Option<&Vec<UtcDateTime>>,
+        _run_ids: Option<&Vec<String>>,
+    ) -> Result<TaskStatesResponse, TaskInstanceApiError<Self::Error>> {
+        todo!()
+    }
+
+    async fn task_instances_validate_inlets_and_outlets(
+        &self,
+        _id: &UniqueTaskInstanceId,
+    ) -> Result<InactiveAssetsResponse, TaskInstanceApiError<Self::Error>> {
+        todo!()
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct TIEnterRunningPayload<'a> {
+    state: TaskInstanceState,
+    hostname: &'a str,
+    unixname: &'a str,
+    pid: u32,
+    start_date: &'a UtcDateTime,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct TITerminalStatePayload<'a> {
+    state: TerminalTIStateNonSuccess,
+    end_date: &'a UtcDateTime,
+    rendered_map_index: Option<&'a str>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct TISuccessStatePayload<'a> {
+    state: TaskInstanceState, // TODO tag success
+    end_date: &'a UtcDateTime,
+    task_outlets: &'a [AssetProfile],
+    outlet_events: &'a [()], // TODO outlet events
+    rendered_map_index: Option<&'a str>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct TIHeartbeatInfo<'a> {
+    hostname: &'a str,
+    pid: u32,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -162,8 +377,7 @@ mod tests {
             .await;
 
         let result = client
-            .task_instances()
-            .start(&ID, HOSTNAME, UNIXNAME, PID, &WHEN)
+            .task_instances_start(&ID, HOSTNAME, UNIXNAME, PID, &WHEN)
             .await;
 
         http_mock.assert_async().await;
@@ -185,8 +399,7 @@ mod tests {
             .await;
 
         let result = client
-            .task_instances()
-            .start(&ID, HOSTNAME, UNIXNAME, PID, &WHEN)
+            .task_instances_start(&ID, HOSTNAME, UNIXNAME, PID, &WHEN)
             .await;
 
         http_mock.assert_async().await;
@@ -214,8 +427,7 @@ mod tests {
             .await;
 
         let result = client
-            .task_instances()
-            .start(&ID, HOSTNAME, UNIXNAME, PID, &WHEN)
+            .task_instances_start(&ID, HOSTNAME, UNIXNAME, PID, &WHEN)
             .await;
 
         http_mock.assert_async().await;
@@ -244,8 +456,7 @@ mod tests {
             .await;
 
         let result = client
-            .task_instances()
-            .finish(&ID, TerminalTIStateNonSuccess::Failed, &WHEN, None)
+            .task_instances_finish(&ID, TerminalTIStateNonSuccess::Failed, &WHEN, None)
             .await;
 
         http_mock.assert_async().await;
@@ -267,8 +478,7 @@ mod tests {
             .await;
 
         let result = client
-            .task_instances()
-            .finish(&ID, TerminalTIStateNonSuccess::Failed, &WHEN, None)
+            .task_instances_finish(&ID, TerminalTIStateNonSuccess::Failed, &WHEN, None)
             .await;
 
         http_mock.assert_async().await;
@@ -295,8 +505,7 @@ mod tests {
             .await;
 
         let result = client
-            .task_instances()
-            .finish(&ID, TerminalTIStateNonSuccess::Failed, &WHEN, None)
+            .task_instances_finish(&ID, TerminalTIStateNonSuccess::Failed, &WHEN, None)
             .await;
 
         http_mock.assert_async().await;
@@ -324,8 +533,7 @@ mod tests {
             .await;
 
         let result = client
-            .task_instances()
-            .succeed(&ID, &WHEN, &[], &[], None)
+            .task_instances_succeed(&ID, &WHEN, &[], &[], None)
             .await;
 
         http_mock.assert_async().await;
@@ -347,8 +555,7 @@ mod tests {
             .await;
 
         let result = client
-            .task_instances()
-            .succeed(&ID, &WHEN, &[], &[], None)
+            .task_instances_succeed(&ID, &WHEN, &[], &[], None)
             .await;
 
         http_mock.assert_async().await;
@@ -375,8 +582,7 @@ mod tests {
             .await;
 
         let result = client
-            .task_instances()
-            .succeed(&ID, &WHEN, &[], &[], None)
+            .task_instances_succeed(&ID, &WHEN, &[], &[], None)
             .await;
 
         http_mock.assert_async().await;
@@ -403,7 +609,7 @@ mod tests {
             })
             .await;
 
-        let result = client.task_instances().heartbeat(&ID, HOSTNAME, PID).await;
+        let result = client.task_instances_heartbeat(&ID, HOSTNAME, PID).await;
 
         http_mock.assert_async().await;
         result.unwrap();
@@ -423,7 +629,7 @@ mod tests {
             })
             .await;
 
-        let result = client.task_instances().heartbeat(&ID, HOSTNAME, PID).await;
+        let result = client.task_instances_heartbeat(&ID, HOSTNAME, PID).await;
 
         http_mock.assert_async().await;
         result.unwrap();
@@ -437,7 +643,7 @@ mod tests {
             })
             .await;
 
-        let result = client.task_instances().heartbeat(&ID, HOSTNAME, PID).await;
+        let result = client.task_instances_heartbeat(&ID, HOSTNAME, PID).await;
 
         http_mock.assert_async().await;
         result.unwrap();
@@ -457,7 +663,7 @@ mod tests {
             })
             .await;
 
-        let result = client.task_instances().heartbeat(&ID, HOSTNAME, PID).await;
+        let result = client.task_instances_heartbeat(&ID, HOSTNAME, PID).await;
 
         http_mock.assert_async().await;
         let result = result.unwrap_err();
@@ -482,7 +688,7 @@ mod tests {
             })
             .await;
 
-        let result = client.task_instances().heartbeat(&ID, HOSTNAME, PID).await;
+        let result = client.task_instances_heartbeat(&ID, HOSTNAME, PID).await;
 
         http_mock.assert_async().await;
         let result = result.unwrap_err();

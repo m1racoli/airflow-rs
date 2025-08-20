@@ -11,10 +11,7 @@ cfg_if::cfg_if! {
 }
 
 use crate::{
-    api::{
-        ExecutionApiClient, ExecutionApiClientFactory, ExecutionApiError, TaskInstanceApiClient,
-        TaskInstanceApiError,
-    },
+    api::{ExecutionApiClient, ExecutionApiClientFactory, ExecutionApiError, TaskInstanceApiError},
     definitions::DagBag,
     execution::{ExecutionResultTIState, LocalTaskHandle, LocalTaskRuntime, StartupDetails},
 };
@@ -124,8 +121,7 @@ where
         let start = time_provider.now();
 
         let ti_context = client
-            .task_instances()
-            .start(
+            .task_instances_start(
                 &id,
                 runtime.hostname(),
                 runtime.unixname(),
@@ -204,8 +200,7 @@ where
         debug!("{}: Sending heartbeat", self.ti.id());
         match self
             .client
-            .task_instances()
-            .heartbeat(&self.ti.id(), self.runtime.hostname(), self.runtime.pid())
+            .task_instances_heartbeat(&self.ti.id(), self.runtime.hostname(), self.runtime.pid())
             .await
         {
             Ok(()) => {
@@ -265,8 +260,7 @@ where
         match state.into() {
             Some(state) => {
                 self.client
-                    .task_instances()
-                    .finish(&id, state, &end, None)
+                    .task_instances_finish(&id, state, &end, None)
                     .await?;
                 Ok(())
             }

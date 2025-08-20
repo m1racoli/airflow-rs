@@ -9,7 +9,7 @@ cfg_if::cfg_if! {
 use airflow_common::datetime::TimeProvider;
 
 use crate::{
-    api::{ExecutionApiClient, ExecutionApiError, TaskInstanceApiClient},
+    api::{ExecutionApiClient, ExecutionApiError},
     definitions::{Context, DagBag, Task, TaskError},
     execution::{ExecutionResultTIState, RuntimeTaskInstance, StartupDetails},
 };
@@ -50,8 +50,7 @@ impl<C: ExecutionApiClient, T: TimeProvider> TaskRunner<C, T> {
             Ok(_) => {
                 let when = self.time_provider.now();
                 self.client
-                    .task_instances()
-                    .succeed(&ti.id, &when, &[], &[], None)
+                    .task_instances_succeed(&ti.id, &when, &[], &[], None)
                     .await
                     .map_err(ExecutionApiError::from)?;
                 (ExecutionResultTIState::Success, None)
