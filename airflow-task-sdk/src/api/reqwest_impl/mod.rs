@@ -2,9 +2,12 @@ mod task_instances;
 
 use std::sync::{Arc, RwLock};
 
-use crate::api::{ExecutionApiClient, TaskInstanceApiClient, client::ExecutionApiClientFactory};
+use crate::api::{
+    ExecutionApiClient, TaskInstanceApiClient, TaskInstanceApiError,
+    client::ExecutionApiClientFactory,
+};
 use airflow_common::utils::SecretString;
-use reqwest::{Method, header::HeaderMap};
+use reqwest::{Method, Response, StatusCode, header::HeaderMap};
 
 use serde::Serialize;
 use task_instances::ReqwestTaskInstanceApiClient;
@@ -55,6 +58,20 @@ impl ReqwestExecutionApiClient {
             builder
         };
         Ok(builder)
+    }
+
+    async fn handle_response(
+        &self,
+        response: Response,
+    ) -> Result<Response, TaskInstanceApiError<reqwest::Error>> {
+        match response.status() {
+            StatusCode::NOT_FOUND => Err(TaskInstanceApiError::NotFound(response.text().await?)),
+            StatusCode::CONFLICT => Err(TaskInstanceApiError::Conflict(response.text().await?)),
+            _ => match response.error_for_status() {
+                Ok(response) => Ok(response),
+                Err(e) => Err(TaskInstanceApiError::Other(e)),
+            },
+        }
     }
 }
 

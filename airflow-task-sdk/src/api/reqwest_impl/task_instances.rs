@@ -5,7 +5,7 @@ use airflow_common::{
     executors::UniqueTaskInstanceId,
     utils::{MapIndex, TaskInstanceState, TerminalTIStateNonSuccess},
 };
-use reqwest::{Method, Response, StatusCode};
+use reqwest::Method;
 use serde::Serialize;
 
 use crate::api::{
@@ -20,22 +20,6 @@ use crate::api::{
 
 #[derive(Debug, Clone)]
 pub(super) struct ReqwestTaskInstanceApiClient(pub(super) ReqwestExecutionApiClient);
-
-impl ReqwestExecutionApiClient {
-    async fn handle_response(
-        &self,
-        response: Response,
-    ) -> Result<Response, TaskInstanceApiError<reqwest::Error>> {
-        match response.status() {
-            StatusCode::NOT_FOUND => Err(TaskInstanceApiError::NotFound(response.text().await?)),
-            StatusCode::CONFLICT => Err(TaskInstanceApiError::Conflict(response.text().await?)),
-            _ => match response.error_for_status() {
-                Ok(response) => Ok(response),
-                Err(e) => Err(TaskInstanceApiError::Other(e)),
-            },
-        }
-    }
-}
 
 impl Deref for ReqwestTaskInstanceApiClient {
     type Target = ReqwestExecutionApiClient;
