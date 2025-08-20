@@ -7,7 +7,6 @@ pub use client::ExecutionApiClient;
 pub use client::ExecutionApiClientFactory;
 pub use client::ExecutionApiError;
 pub use client::TaskInstanceApiClient;
-pub use client::TaskInstanceApiError;
 pub use datamodels::AssetProfile;
 pub use datamodels::DagRun;
 pub use datamodels::InactiveAssetsResponse;

@@ -1,9 +1,9 @@
 use std::sync::{Arc, RwLock};
 
 use crate::api::{
-    AssetProfile, ExecutionApiClient, InactiveAssetsResponse, PrevSuccessfulDagRunResponse,
-    TICount, TIRunContext, TaskInstanceApiError, TaskRescheduleStartDate, TaskStatesResponse,
-    client::ExecutionApiClientFactory,
+    AssetProfile, ExecutionApiClient, ExecutionApiError, InactiveAssetsResponse,
+    PrevSuccessfulDagRunResponse, TICount, TIRunContext, TaskRescheduleStartDate,
+    TaskStatesResponse, client::ExecutionApiClientFactory,
 };
 use airflow_common::{
     datetime::UtcDateTime,
@@ -65,13 +65,13 @@ impl ReqwestExecutionApiClient {
     async fn handle_response(
         &self,
         response: Response,
-    ) -> Result<Response, TaskInstanceApiError<reqwest::Error>> {
+    ) -> Result<Response, ExecutionApiError<reqwest::Error>> {
         match response.status() {
-            StatusCode::NOT_FOUND => Err(TaskInstanceApiError::NotFound(response.text().await?)),
-            StatusCode::CONFLICT => Err(TaskInstanceApiError::Conflict(response.text().await?)),
+            StatusCode::NOT_FOUND => Err(ExecutionApiError::NotFound(response.text().await?)),
+            StatusCode::CONFLICT => Err(ExecutionApiError::Conflict(response.text().await?)),
             _ => match response.error_for_status() {
                 Ok(response) => Ok(response),
-                Err(e) => Err(TaskInstanceApiError::Other(e)),
+                Err(e) => Err(ExecutionApiError::Other(e)),
             },
         }
     }
@@ -87,7 +87,7 @@ impl ExecutionApiClient for ReqwestExecutionApiClient {
         unixname: &str,
         pid: u32,
         when: &UtcDateTime,
-    ) -> Result<TIRunContext, TaskInstanceApiError<Self::Error>> {
+    ) -> Result<TIRunContext, ExecutionApiError<Self::Error>> {
         let path = format!("task-instances/{id}/run");
         let body = TIEnterRunningPayload {
             state: TaskInstanceState::Running,
@@ -110,7 +110,7 @@ impl ExecutionApiClient for ReqwestExecutionApiClient {
         state: TerminalTIStateNonSuccess,
         when: &UtcDateTime,
         rendered_map_index: Option<&str>,
-    ) -> Result<(), TaskInstanceApiError<Self::Error>> {
+    ) -> Result<(), ExecutionApiError<Self::Error>> {
         let path = format!("task-instances/{id}/state");
         let body = TITerminalStatePayload {
             state,
@@ -130,7 +130,7 @@ impl ExecutionApiClient for ReqwestExecutionApiClient {
         _id: &UniqueTaskInstanceId,
         _when: &UtcDateTime,
         _rendered_map_index: Option<&str>,
-    ) -> Result<(), TaskInstanceApiError<Self::Error>> {
+    ) -> Result<(), ExecutionApiError<Self::Error>> {
         todo!()
     }
 
@@ -141,7 +141,7 @@ impl ExecutionApiClient for ReqwestExecutionApiClient {
         task_outlets: &[AssetProfile],
         outlet_events: &[()],
         rendered_map_index: Option<&str>,
-    ) -> Result<(), TaskInstanceApiError<Self::Error>> {
+    ) -> Result<(), ExecutionApiError<Self::Error>> {
         let path = format!("task-instances/{id}/state");
         let body = TISuccessStatePayload {
             state: TaskInstanceState::Success,
@@ -167,7 +167,7 @@ impl ExecutionApiClient for ReqwestExecutionApiClient {
         _next_method: &str,
         _next_kwargs: &N,
         _rendered_map_index: Option<&str>,
-    ) -> Result<(), TaskInstanceApiError<Self::Error>> {
+    ) -> Result<(), ExecutionApiError<Self::Error>> {
         todo!()
     }
 
@@ -176,7 +176,7 @@ impl ExecutionApiClient for ReqwestExecutionApiClient {
         _id: &UniqueTaskInstanceId,
         _reschedule_date: &UtcDateTime,
         _end_date: &UtcDateTime,
-    ) -> Result<(), TaskInstanceApiError<Self::Error>> {
+    ) -> Result<(), ExecutionApiError<Self::Error>> {
         todo!()
     }
 
@@ -185,7 +185,7 @@ impl ExecutionApiClient for ReqwestExecutionApiClient {
         id: &UniqueTaskInstanceId,
         hostname: &str,
         pid: u32,
-    ) -> Result<(), TaskInstanceApiError<Self::Error>> {
+    ) -> Result<(), ExecutionApiError<Self::Error>> {
         let path = format!("task-instances/{id}/heartbeat");
         let body = TIHeartbeatInfo { hostname, pid };
         let response = self
@@ -207,7 +207,7 @@ impl ExecutionApiClient for ReqwestExecutionApiClient {
         &self,
         _id: &UniqueTaskInstanceId,
         _tasks: &[(String, MapIndex)],
-    ) -> Result<(), TaskInstanceApiError<Self::Error>> {
+    ) -> Result<(), ExecutionApiError<Self::Error>> {
         todo!()
     }
 
@@ -215,14 +215,14 @@ impl ExecutionApiClient for ReqwestExecutionApiClient {
         &self,
         _id: &UniqueTaskInstanceId,
         _fields: &F,
-    ) -> Result<(), TaskInstanceApiError<Self::Error>> {
+    ) -> Result<(), ExecutionApiError<Self::Error>> {
         todo!()
     }
 
     async fn task_instances_get_previous_successful_dagrun(
         &self,
         _id: &UniqueTaskInstanceId,
-    ) -> Result<PrevSuccessfulDagRunResponse, TaskInstanceApiError<Self::Error>> {
+    ) -> Result<PrevSuccessfulDagRunResponse, ExecutionApiError<Self::Error>> {
         todo!()
     }
 
@@ -230,7 +230,7 @@ impl ExecutionApiClient for ReqwestExecutionApiClient {
         &self,
         _id: &UniqueTaskInstanceId,
         _try_number: usize,
-    ) -> Result<TaskRescheduleStartDate, TaskInstanceApiError<Self::Error>> {
+    ) -> Result<TaskRescheduleStartDate, ExecutionApiError<Self::Error>> {
         todo!()
     }
 
@@ -243,7 +243,7 @@ impl ExecutionApiClient for ReqwestExecutionApiClient {
         _logical_dates: Option<&Vec<UtcDateTime>>,
         _run_ids: Option<&Vec<String>>,
         _states: Option<&Vec<TaskInstanceState>>,
-    ) -> Result<TICount, TaskInstanceApiError<Self::Error>> {
+    ) -> Result<TICount, ExecutionApiError<Self::Error>> {
         todo!()
     }
 
@@ -255,14 +255,14 @@ impl ExecutionApiClient for ReqwestExecutionApiClient {
         _task_group_id: Option<&str>,
         _logical_dates: Option<&Vec<UtcDateTime>>,
         _run_ids: Option<&Vec<String>>,
-    ) -> Result<TaskStatesResponse, TaskInstanceApiError<Self::Error>> {
+    ) -> Result<TaskStatesResponse, ExecutionApiError<Self::Error>> {
         todo!()
     }
 
     async fn task_instances_validate_inlets_and_outlets(
         &self,
         _id: &UniqueTaskInstanceId,
-    ) -> Result<InactiveAssetsResponse, TaskInstanceApiError<Self::Error>> {
+    ) -> Result<InactiveAssetsResponse, ExecutionApiError<Self::Error>> {
         todo!()
     }
 }
@@ -406,7 +406,7 @@ mod tests {
         let result = result.unwrap_err();
 
         assert!(
-            matches!(result, TaskInstanceApiError::NotFound(_)),
+            matches!(result, ExecutionApiError::NotFound(_)),
             "Expected NotFound error, got: {:?}",
             result
         );
@@ -434,7 +434,7 @@ mod tests {
         let result = result.unwrap_err();
 
         assert!(
-            matches!(result, TaskInstanceApiError::Conflict(_)),
+            matches!(result, ExecutionApiError::Conflict(_)),
             "Expected Conflict error, got: {:?}",
             result
         );
@@ -484,7 +484,7 @@ mod tests {
         http_mock.assert_async().await;
         let result = result.unwrap_err();
         assert!(
-            matches!(result, TaskInstanceApiError::NotFound(_)),
+            matches!(result, ExecutionApiError::NotFound(_)),
             "Expected NotFound error, got: {:?}",
             result
         );
@@ -511,7 +511,7 @@ mod tests {
         http_mock.assert_async().await;
         let result = result.unwrap_err();
         assert!(
-            matches!(result, TaskInstanceApiError::Conflict(_)),
+            matches!(result, ExecutionApiError::Conflict(_)),
             "Expected Conflict error, got: {:?}",
             result
         );
@@ -561,7 +561,7 @@ mod tests {
         http_mock.assert_async().await;
         let result = result.unwrap_err();
         assert!(
-            matches!(result, TaskInstanceApiError::NotFound(_)),
+            matches!(result, ExecutionApiError::NotFound(_)),
             "Expected NotFound error, got: {:?}",
             result
         );
@@ -588,7 +588,7 @@ mod tests {
         http_mock.assert_async().await;
         let result = result.unwrap_err();
         assert!(
-            matches!(result, TaskInstanceApiError::Conflict(_)),
+            matches!(result, ExecutionApiError::Conflict(_)),
             "Expected Conflict error, got: {:?}",
             result
         );
@@ -668,7 +668,7 @@ mod tests {
         http_mock.assert_async().await;
         let result = result.unwrap_err();
         assert!(
-            matches!(result, TaskInstanceApiError::NotFound(_)),
+            matches!(result, ExecutionApiError::NotFound(_)),
             "Expected NotFound error, got: {:?}",
             result
         );
@@ -693,7 +693,7 @@ mod tests {
         http_mock.assert_async().await;
         let result = result.unwrap_err();
         assert!(
-            matches!(result, TaskInstanceApiError::Conflict(_)),
+            matches!(result, ExecutionApiError::Conflict(_)),
             "Expected Conflict error, got: {:?}",
             result
         );

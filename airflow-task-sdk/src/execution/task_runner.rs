@@ -51,8 +51,7 @@ impl<C: ExecutionApiClient, T: TimeProvider> TaskRunner<C, T> {
                 let when = self.time_provider.now();
                 self.client
                     .task_instances_succeed(&ti.id, &when, &[], &[], None)
-                    .await
-                    .map_err(ExecutionApiError::from)?;
+                    .await?;
                 (ExecutionResultTIState::Success, None)
             }
             Err(error) => (ExecutionResultTIState::Failed, Some(error)),

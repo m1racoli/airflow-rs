@@ -6,9 +6,7 @@ use airflow_edge_sdk::{
     api::{EdgeApiError, ReqwestEdgeApiClient, ReqwestEdgeApiError},
     worker::EdgeWorkerError,
 };
-use airflow_task_sdk::api::{
-    ReqwestExecutionApiClient, ReqwestExecutionApiClientFactory, TaskInstanceApiError,
-};
+use airflow_task_sdk::api::{ReqwestExecutionApiClient, ReqwestExecutionApiClientFactory};
 
 pub mod example;
 pub mod tokio;
@@ -20,8 +18,6 @@ pub type StdEdgeApiError = EdgeApiError<
     ReqwestEdgeApiError<<JsonWebTokenJWTGenerator<StdTimeProvider> as JWTGenerator>::Error>,
 >;
 pub type StdExecutionApiClient = ReqwestExecutionApiClient;
-/// TODO: leakage of E, which might need crate installed, i.e. `request::Error``
-pub type StdTaskInstanceApiError = TaskInstanceApiError<reqwest::Error>;
 pub type StdExecutionApiClientFactory = ReqwestExecutionApiClientFactory;
 
 #[derive(thiserror::Error, Debug)]

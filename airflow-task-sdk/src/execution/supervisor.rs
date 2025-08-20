@@ -11,7 +11,7 @@ cfg_if::cfg_if! {
 }
 
 use crate::{
-    api::{ExecutionApiClient, ExecutionApiClientFactory, ExecutionApiError, TaskInstanceApiError},
+    api::{ExecutionApiClient, ExecutionApiClientFactory, ExecutionApiError},
     definitions::DagBag,
     execution::{ExecutionResultTIState, LocalTaskHandle, LocalTaskRuntime, StartupDetails},
 };
@@ -208,7 +208,7 @@ where
                 self.failed_heartbeats = 0;
                 Ok(())
             }
-            Err(TaskInstanceApiError::NotFound(detail)) => {
+            Err(ExecutionApiError::NotFound(detail)) => {
                 info!(
                     "{}: Server indicated the task shouldn't be running anymore; terminating task: {detail}",
                     self.ti.id()
@@ -217,7 +217,7 @@ where
                 self.server_terminated = true;
                 Ok(())
             }
-            Err(TaskInstanceApiError::Conflict(detail)) => {
+            Err(ExecutionApiError::Conflict(detail)) => {
                 info!(
                     "{}: Server indicated the task shouldn't be running anymore; terminating task: {detail}",
                     self.ti.id()
@@ -236,7 +236,7 @@ where
                         self.ti.id()
                     );
                     self.handle.abort();
-                    Err(ExecutionApiError::TaskInstance(e))
+                    Err(e)
                 } else {
                     warn!(
                         "{}: Failed to send heartbeat ({} of {}): {e}",
