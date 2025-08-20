@@ -173,8 +173,3 @@ pub enum ExecutionApiError<E: error::Error> {
     #[error(transparent)]
     Other(#[from] E),
 }
-
-#[trait_variant::make(Send)]
-pub trait TaskInstanceApiClient {
-    type Error: error::Error;
-}
