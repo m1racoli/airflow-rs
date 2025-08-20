@@ -9,7 +9,7 @@ cfg_if::cfg_if! {
 use airflow_common::datetime::TimeProvider;
 
 use crate::{
-    api::ExecutionApiClient,
+    api::LocalExecutionApiClient,
     definitions::DagBag,
     execution::{ExecutionError, ExecutionResultTIState, StartupDetails},
 };
@@ -18,7 +18,7 @@ use crate::{
 pub trait LocalTaskHandle<C>:
     Future<Output = Result<ExecutionResultTIState, ExecutionError<C>>> + Unpin
 where
-    C: ExecutionApiClient,
+    C: LocalExecutionApiClient,
 {
     fn abort(&self);
 }
@@ -26,7 +26,7 @@ where
 #[trait_variant::make(TaskRuntime: Send)]
 pub trait LocalTaskRuntime<C, T>
 where
-    C: ExecutionApiClient,
+    C: LocalExecutionApiClient,
     T: TimeProvider,
 {
     type ActivityHandle: LocalTaskHandle<C>;

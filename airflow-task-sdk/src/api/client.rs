@@ -24,8 +24,8 @@ use crate::api::{
     },
 };
 
-#[trait_variant::make(Send)]
-pub trait ExecutionApiClient {
+#[trait_variant::make(ExecutionApiClient: Send)]
+pub trait LocalExecutionApiClient {
     type Error: error::Error;
 
     /// Tell the API server that this TI has started running.
@@ -156,8 +156,9 @@ pub trait ExecutionApiClient {
 }
 
 /// A factory which builds an execution API client for the given base URL and token.
-pub trait ExecutionApiClientFactory {
-    type Client: ExecutionApiClient;
+#[trait_variant::make(ExecutionApiClientFactory: Send)]
+pub trait LocalExecutionApiClientFactory {
+    type Client: LocalExecutionApiClient;
     type Error: error::Error;
 
     fn create(&self, base_url: &str, token: &SecretString) -> Result<Self::Client, Self::Error>;

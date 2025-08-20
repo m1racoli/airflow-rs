@@ -9,14 +9,14 @@ cfg_if::cfg_if! {
 use airflow_common::datetime::TimeProvider;
 
 use crate::{
-    api::{ExecutionApiClient, ExecutionApiError},
+    api::{ExecutionApiError, LocalExecutionApiClient},
     definitions::{Context, DagBag, Task, TaskError},
     execution::{ExecutionResultTIState, RuntimeTaskInstance, StartupDetails},
 };
 
 /// An error which can occur during task execution outside the task itself.
 #[derive(thiserror::Error, Debug)]
-pub enum ExecutionError<C: ExecutionApiClient> {
+pub enum ExecutionError<C: LocalExecutionApiClient> {
     #[error("DAG not found: {0}")]
     DagNotFound(String),
     #[error("Task not found in DAG: {0}.{1}")]
@@ -26,12 +26,12 @@ pub enum ExecutionError<C: ExecutionApiClient> {
 }
 
 #[derive(Debug)]
-pub struct TaskRunner<C: ExecutionApiClient, T: TimeProvider> {
+pub struct TaskRunner<C: LocalExecutionApiClient, T: TimeProvider> {
     client: C,
     time_provider: T,
 }
 
-impl<C: ExecutionApiClient, T: TimeProvider> TaskRunner<C, T> {
+impl<C: LocalExecutionApiClient, T: TimeProvider> TaskRunner<C, T> {
     pub fn new(client: C, time_provider: T) -> Self {
         Self {
             client,

@@ -11,7 +11,7 @@ cfg_if::cfg_if! {
 }
 
 use crate::{
-    api::{ExecutionApiClient, ExecutionApiClientFactory, ExecutionApiError},
+    api::{ExecutionApiError, LocalExecutionApiClient, LocalExecutionApiClientFactory},
     definitions::DagBag,
     execution::{ExecutionResultTIState, LocalTaskHandle, LocalTaskRuntime, StartupDetails},
 };
@@ -35,7 +35,7 @@ pub async fn supervise<F, T, R>(
     runtime: &R,
 ) -> bool
 where
-    F: ExecutionApiClientFactory,
+    F: LocalExecutionApiClientFactory,
     F::Client: Clone + 'static,
     T: TimeProvider + Clone + 'static,
     R: LocalTaskRuntime<F::Client, T>,
@@ -84,7 +84,7 @@ where
 }
 
 #[derive(thiserror::Error, Debug)]
-enum ActivityError<C: ExecutionApiClient> {
+enum ActivityError<C: LocalExecutionApiClient> {
     #[error("Server terminated")]
     ServerTerminated,
     #[error("Execution API error: {0}")]
@@ -92,7 +92,7 @@ enum ActivityError<C: ExecutionApiClient> {
 }
 
 /// This is an equivalent of ActiveSubprocess in original Airflow, but async.
-struct ActivityTask<'a, C: ExecutionApiClient, T: TimeProvider, R: LocalTaskRuntime<C, T>> {
+struct ActivityTask<'a, C: LocalExecutionApiClient, T: TimeProvider, R: LocalTaskRuntime<C, T>> {
     ti: &'a TaskInstance,
     client: C,
     time_provider: T,
@@ -106,7 +106,7 @@ struct ActivityTask<'a, C: ExecutionApiClient, T: TimeProvider, R: LocalTaskRunt
 
 impl<'a, C, T, R> ActivityTask<'a, C, T, R>
 where
-    C: ExecutionApiClient + Clone + 'static,
+    C: LocalExecutionApiClient + Clone + 'static,
     T: TimeProvider + Clone + 'static,
     R: LocalTaskRuntime<C, T>,
 {

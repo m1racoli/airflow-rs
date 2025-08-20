@@ -322,8 +322,6 @@ mod tests {
     };
     use httpmock::MockServer;
 
-    use crate::api::ExecutionApiClient;
-
     use super::*;
 
     static ID: LazyLock<UniqueTaskInstanceId> = LazyLock::new(|| {
