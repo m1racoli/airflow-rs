@@ -35,8 +35,8 @@ pub async fn supervise<F, T, R>(
     runtime: &R,
 ) -> bool
 where
-    F: LocalExecutionApiClientFactory,
-    F::Client: Clone + 'static,
+    F: LocalExecutionApiClientFactory + 'static,
+    F::Client: Clone,
     T: TimeProvider + Clone + 'static,
     R: LocalTaskRuntime<F::Client, T>,
 {

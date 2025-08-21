@@ -7,7 +7,6 @@ use std::{
 
 use airflow_common::{
     datetime::{StdTimeProvider, TimeProvider},
-    executors::ExecuteTask,
     models::{TaskInstanceKey, TaskInstanceLike},
 };
 use airflow_edge_sdk::{
@@ -15,7 +14,7 @@ use airflow_edge_sdk::{
     worker::{EdgeJob, Intercom, IntercomMessage, WorkerRuntime, WorkerState},
 };
 use airflow_task_sdk::{
-    api::ExecutionApiClient,
+    api::{ExecutionApiClient, ExecutionApiClientFactory},
     definitions::DagBag,
     execution::{
         ExecutionError, ExecutionResultTIState, StartupDetails, TaskHandle, TaskRunner,
@@ -25,8 +24,6 @@ use airflow_task_sdk::{
 use log::debug;
 use tokio::{sync::mpsc, task::JoinHandle};
 use tracing::{error, info};
-
-use crate::StdExecutionApiClientFactory;
 
 #[derive(Debug)]
 pub struct TokioEdgeJob {
@@ -77,21 +74,22 @@ impl Intercom for TokioIntercom {
     }
 }
 
-pub struct TokioRuntime {
+pub struct TokioRuntime<F: ExecutionApiClientFactory> {
     concurrency: usize,
     recv: mpsc::Receiver<IntercomMessage>,
     send: mpsc::Sender<IntercomMessage>,
     hostname: String,
+    client_factory: F,
 }
 
-impl TokioRuntime {
+impl<F: ExecutionApiClientFactory> TokioRuntime<F> {
     pub fn with_concurrency(mut self, concurrency: usize) -> Self {
         self.concurrency = concurrency;
         self
     }
 }
 
-impl Default for TokioRuntime {
+impl<F: ExecutionApiClientFactory + Default> Default for TokioRuntime<F> {
     fn default() -> Self {
         let (send, recv) = mpsc::channel(1);
         let hostname = whoami::fallible::hostname().expect("Could not get hostname");
@@ -100,11 +98,17 @@ impl Default for TokioRuntime {
             send,
             concurrency: 1,
             hostname,
+            client_factory: F::default(),
         }
     }
 }
 
-impl WorkerRuntime for TokioRuntime {
+impl<F> WorkerRuntime for TokioRuntime<F>
+where
+    F: ExecutionApiClientFactory + Clone + 'static,
+    F::Client: Clone + Sync,
+    <F::Client as ExecutionApiClient>::Error: Send,
+{
     type Job = TokioEdgeJob;
     type Intercom = TokioIntercom;
 
@@ -121,27 +125,29 @@ impl WorkerRuntime for TokioRuntime {
     }
 
     fn launch(&self, job: EdgeJobFetched, dag_bag: &'static DagBag) -> Self::Job {
-        async fn _launch(
-            task: ExecuteTask,
-            intercom: TokioIntercom,
-            dag_bag: &'static DagBag,
-        ) -> bool {
-            let key = task.ti().ti_key();
-            info!(ti_key = key.to_string(), "Worker task launched.");
-
-            // TODO should supervise instantiate the client? we need a client factory?
-            // TODO should this be passed from somewhere?
-            let time_provider = StdTimeProvider;
-            let runtime = TokioTaskRuntime::default();
-            let client_factory = StdExecutionApiClientFactory::default();
-
-            supervise(task, client_factory, time_provider, dag_bag, &runtime).await;
-            intercom.send(IntercomMessage::JobCompleted(key)).await.ok();
-            true
-        }
         let ti_key = job.ti_key();
         let intercom = self.intercom();
-        let handle = tokio::spawn(_launch(job.command, intercom, dag_bag));
+        let client_factory = self.client_factory.clone();
+
+        let handle = tokio::spawn(async move {
+            let key = job.command.ti().ti_key();
+            info!(ti_key = key.to_string(), "Worker task launched.");
+
+            // TODO should the time provider be passed from somewhere?
+            let time_provider = StdTimeProvider;
+            let runtime = TokioTaskRuntime::default();
+
+            supervise(
+                job.command,
+                client_factory,
+                time_provider,
+                dag_bag,
+                &runtime,
+            )
+            .await;
+            intercom.send(IntercomMessage::JobCompleted(key)).await.ok();
+            true
+        });
         TokioEdgeJob {
             ti_key,
             handle: Some(handle),

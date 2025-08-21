@@ -3,6 +3,7 @@ use airflow_edge_sdk::{
     api::EdgeApiClient,
     worker::{EdgeWorker, Intercom, IntercomMessage, LocalWorkerRuntime},
 };
+use airflow_task_sdk::api::ReqwestExecutionApiClientFactory;
 use examples::{
     StdEdgeApiClient, StdJWTGenerator,
     example::get_dag_bag,
@@ -73,12 +74,11 @@ async fn main() {
     let dag_bag = get_dag_bag();
 
     register_signal(runtime.intercom()).expect("Failed to register signal handler");
-    let worker = EdgeWorker::<StdEdgeApiClient, StdTimeProvider, TokioRuntime>::new(
-        client,
-        time_provider,
-        runtime,
-        dag_bag,
-    );
+    let worker = EdgeWorker::<
+        StdEdgeApiClient,
+        StdTimeProvider,
+        TokioRuntime<ReqwestExecutionApiClientFactory>,
+    >::new(client, time_provider, runtime, dag_bag);
 
     match worker.start().await {
         Ok(_) => {}
