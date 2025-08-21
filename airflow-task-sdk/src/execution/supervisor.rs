@@ -13,7 +13,7 @@ cfg_if::cfg_if! {
 use crate::{
     api::{ExecutionApiError, LocalExecutionApiClient, LocalExecutionApiClientFactory},
     definitions::DagBag,
-    execution::{ExecutionResultTIState, LocalTaskHandle, LocalTaskRuntime, StartupDetails},
+    execution::{ExecutionResultTIState, LocalTaskRuntime, StartupDetails, TaskHandle},
 };
 use airflow_common::{
     datetime::TimeProvider,

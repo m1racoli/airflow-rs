@@ -14,8 +14,7 @@ use crate::{
     execution::{ExecutionError, ExecutionResultTIState, StartupDetails},
 };
 
-#[trait_variant::make(TaskHandle: Send)]
-pub trait LocalTaskHandle<C>:
+pub trait TaskHandle<C>:
     Future<Output = Result<ExecutionResultTIState, ExecutionError<C>>> + Unpin
 where
     C: LocalExecutionApiClient,
@@ -29,7 +28,7 @@ where
     C: LocalExecutionApiClient,
     T: TimeProvider,
 {
-    type ActivityHandle: LocalTaskHandle<C>;
+    type ActivityHandle: TaskHandle<C>;
     type Instant: Copy;
 
     fn now(&self) -> Self::Instant;
