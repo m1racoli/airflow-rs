@@ -40,7 +40,7 @@ impl<C: LocalExecutionApiClient, T: TimeProvider> TaskRunner<C, T> {
     }
 
     async fn run(
-        &self,
+        &mut self,
         task: &Task,
         ti: &mut RuntimeTaskInstance,
         context: &Context,
@@ -79,7 +79,7 @@ impl<C: LocalExecutionApiClient, T: TimeProvider> TaskRunner<C, T> {
     }
 
     async fn _main(
-        self,
+        mut self,
         what: StartupDetails,
         dag_bag: &DagBag,
     ) -> Result<ExecutionResultTIState, ExecutionError<C>> {

@@ -41,7 +41,7 @@ pub trait LocalExecutionApiClient {
 
     /// Tell the API server that this TI has started running.
     async fn task_instances_start(
-        &self,
+        &mut self,
         id: &UniqueTaskInstanceId,
         hostname: &str,
         unixname: &str,
@@ -51,7 +51,7 @@ pub trait LocalExecutionApiClient {
 
     /// Tell the API server that this TI has reached a terminal state.
     async fn task_instances_finish(
-        &self,
+        &mut self,
         id: &UniqueTaskInstanceId,
         state: TerminalTIStateNonSuccess,
         when: &UtcDateTime,
@@ -60,7 +60,7 @@ pub trait LocalExecutionApiClient {
 
     /// Tell the API server that this TI has failed and reached a up_for_retry state.
     async fn task_instances_retry(
-        &self,
+        &mut self,
         id: &UniqueTaskInstanceId,
         when: &UtcDateTime,
         rendered_map_index: Option<&str>,
@@ -68,7 +68,7 @@ pub trait LocalExecutionApiClient {
 
     /// Tell the API server that this TI has succeeded.
     async fn task_instances_succeed(
-        &self,
+        &mut self,
         id: &UniqueTaskInstanceId,
         when: &UtcDateTime,
         task_outlets: &[AssetProfile],
@@ -79,7 +79,7 @@ pub trait LocalExecutionApiClient {
     /// Tell the API server that this TI has been deferred.
     #[allow(clippy::too_many_arguments)]
     async fn task_instances_defer<T: Serialize + Sync, N: Serialize + Sync>(
-        &self,
+        &mut self,
         id: &UniqueTaskInstanceId,
         classpath: &str,
         trigger_kwargs: &T,
@@ -91,7 +91,7 @@ pub trait LocalExecutionApiClient {
 
     /// Tell the API server that this TI has been rescheduled.
     async fn task_instances_reschedule(
-        &self,
+        &mut self,
         id: &UniqueTaskInstanceId,
         reschedule_date: &UtcDateTime,
         end_date: &UtcDateTime,
@@ -100,7 +100,7 @@ pub trait LocalExecutionApiClient {
     /// Tell the API server that this TI is still running and send a heartbeat.
     /// Also, updates the auth token if the server returns a new one.
     async fn task_instances_heartbeat(
-        &self,
+        &mut self,
         id: &UniqueTaskInstanceId,
         hostname: &str,
         pid: u32,
@@ -108,14 +108,14 @@ pub trait LocalExecutionApiClient {
 
     /// Tell the API server to skip the downstream tasks of this TI.
     async fn task_instances_skip_downstream_tasks(
-        &self,
+        &mut self,
         id: &UniqueTaskInstanceId,
         tasks: &[(String, MapIndex)], // TODO enum for mapped and non-mapped tasks?
     ) -> Result<(), ExecutionApiError<Self::Error>>;
 
     /// Set Rendered Task Instance Fields via the API server.
     async fn task_instances_set_rtif<F: Serialize + Sync>(
-        &self,
+        &mut self,
         id: &UniqueTaskInstanceId,
         fields: &F,
     ) -> Result<(), ExecutionApiError<Self::Error>>;
@@ -124,13 +124,13 @@ pub trait LocalExecutionApiClient {
     ///
     /// The data from it is used to get values for Task Context.
     async fn task_instances_get_previous_successful_dagrun(
-        &self,
+        &mut self,
         id: &UniqueTaskInstanceId,
     ) -> Result<PrevSuccessfulDagRunResponse, ExecutionApiError<Self::Error>>;
 
     /// Get the start date of a task reschedule via the API server.
     async fn task_instances_get_reschedule_start_date(
-        &self,
+        &mut self,
         id: &UniqueTaskInstanceId,
         try_number: usize,
     ) -> Result<TaskRescheduleStartDate, ExecutionApiError<Self::Error>>;
@@ -138,7 +138,7 @@ pub trait LocalExecutionApiClient {
     /// Get count of task instances matching the given criteria.
     #[allow(clippy::too_many_arguments)]
     async fn task_instances_get_count(
-        &self,
+        &mut self,
         dag_id: &str,
         map_index: Option<MapIndex>,
         task_ids: Option<&Vec<String>>,
@@ -150,7 +150,7 @@ pub trait LocalExecutionApiClient {
 
     /// Get task states given criteria.
     async fn task_instances_get_task_states(
-        &self,
+        &mut self,
         dag_id: &str,
         map_index: Option<MapIndex>,
         task_ids: Option<&Vec<String>>,
@@ -161,7 +161,7 @@ pub trait LocalExecutionApiClient {
 
     /// Validate whether there're inactive assets in inlets and outlets of a given task instance.
     async fn task_instances_validate_inlets_and_outlets(
-        &self,
+        &mut self,
         id: &UniqueTaskInstanceId,
     ) -> Result<InactiveAssetsResponse, ExecutionApiError<Self::Error>>;
 }

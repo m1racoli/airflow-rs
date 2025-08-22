@@ -93,7 +93,7 @@ impl ExecutionApiClient for ReqwestExecutionApiClient {
     type Error = reqwest::Error;
 
     async fn task_instances_start(
-        &self,
+        &mut self,
         id: &UniqueTaskInstanceId,
         hostname: &str,
         unixname: &str,
@@ -117,7 +117,7 @@ impl ExecutionApiClient for ReqwestExecutionApiClient {
     }
 
     async fn task_instances_finish(
-        &self,
+        &mut self,
         id: &UniqueTaskInstanceId,
         state: TerminalTIStateNonSuccess,
         when: &UtcDateTime,
@@ -138,7 +138,7 @@ impl ExecutionApiClient for ReqwestExecutionApiClient {
     }
 
     async fn task_instances_retry(
-        &self,
+        &mut self,
         _id: &UniqueTaskInstanceId,
         _when: &UtcDateTime,
         _rendered_map_index: Option<&str>,
@@ -147,7 +147,7 @@ impl ExecutionApiClient for ReqwestExecutionApiClient {
     }
 
     async fn task_instances_succeed(
-        &self,
+        &mut self,
         id: &UniqueTaskInstanceId,
         when: &UtcDateTime,
         task_outlets: &[AssetProfile],
@@ -171,7 +171,7 @@ impl ExecutionApiClient for ReqwestExecutionApiClient {
     }
 
     async fn task_instances_defer<T: Serialize + Sync, N: Serialize + Sync>(
-        &self,
+        &mut self,
         _id: &UniqueTaskInstanceId,
         _classpath: &str,
         _trigger_kwargs: &T,
@@ -184,7 +184,7 @@ impl ExecutionApiClient for ReqwestExecutionApiClient {
     }
 
     async fn task_instances_reschedule(
-        &self,
+        &mut self,
         _id: &UniqueTaskInstanceId,
         _reschedule_date: &UtcDateTime,
         _end_date: &UtcDateTime,
@@ -193,7 +193,7 @@ impl ExecutionApiClient for ReqwestExecutionApiClient {
     }
 
     async fn task_instances_heartbeat(
-        &self,
+        &mut self,
         id: &UniqueTaskInstanceId,
         hostname: &str,
         pid: u32,
@@ -216,7 +216,7 @@ impl ExecutionApiClient for ReqwestExecutionApiClient {
     }
 
     async fn task_instances_skip_downstream_tasks(
-        &self,
+        &mut self,
         _id: &UniqueTaskInstanceId,
         _tasks: &[(String, MapIndex)],
     ) -> Result<(), ExecutionApiError<Self::Error>> {
@@ -224,7 +224,7 @@ impl ExecutionApiClient for ReqwestExecutionApiClient {
     }
 
     async fn task_instances_set_rtif<F: Serialize + Sync>(
-        &self,
+        &mut self,
         _id: &UniqueTaskInstanceId,
         _fields: &F,
     ) -> Result<(), ExecutionApiError<Self::Error>> {
@@ -232,14 +232,14 @@ impl ExecutionApiClient for ReqwestExecutionApiClient {
     }
 
     async fn task_instances_get_previous_successful_dagrun(
-        &self,
+        &mut self,
         _id: &UniqueTaskInstanceId,
     ) -> Result<PrevSuccessfulDagRunResponse, ExecutionApiError<Self::Error>> {
         todo!()
     }
 
     async fn task_instances_get_reschedule_start_date(
-        &self,
+        &mut self,
         _id: &UniqueTaskInstanceId,
         _try_number: usize,
     ) -> Result<TaskRescheduleStartDate, ExecutionApiError<Self::Error>> {
@@ -247,7 +247,7 @@ impl ExecutionApiClient for ReqwestExecutionApiClient {
     }
 
     async fn task_instances_get_count(
-        &self,
+        &mut self,
         _dag_id: &str,
         _map_index: Option<airflow_common::utils::MapIndex>,
         _task_ids: Option<&Vec<String>>,
@@ -260,7 +260,7 @@ impl ExecutionApiClient for ReqwestExecutionApiClient {
     }
 
     async fn task_instances_get_task_states(
-        &self,
+        &mut self,
         _dag_id: &str,
         _map_index: Option<airflow_common::utils::MapIndex>,
         _task_ids: Option<&Vec<String>>,
@@ -272,7 +272,7 @@ impl ExecutionApiClient for ReqwestExecutionApiClient {
     }
 
     async fn task_instances_validate_inlets_and_outlets(
-        &self,
+        &mut self,
         _id: &UniqueTaskInstanceId,
     ) -> Result<InactiveAssetsResponse, ExecutionApiError<Self::Error>> {
         todo!()
@@ -347,7 +347,7 @@ mod tests {
     #[tokio::test]
     async fn test_start_ok() {
         let server = MockServer::start_async().await;
-        let client = client(&server.base_url());
+        let mut client = client(&server.base_url());
 
         let http_mock = server
             .mock_async(|when, then| {
@@ -385,7 +385,7 @@ mod tests {
     #[tokio::test]
     async fn test_start_not_found() {
         let server = MockServer::start_async().await;
-        let client = client(&server.base_url());
+        let mut client = client(&server.base_url());
 
         let http_mock = server
             .mock_async(|when, then| {
@@ -413,7 +413,7 @@ mod tests {
     #[tokio::test]
     async fn test_start_conflict() {
         let server = MockServer::start_async().await;
-        let client = client(&server.base_url());
+        let mut client = client(&server.base_url());
 
         let http_mock = server
             .mock_async(|when, then| {
@@ -441,7 +441,7 @@ mod tests {
     #[tokio::test]
     async fn test_finish_ok() {
         let server = MockServer::start_async().await;
-        let client = client(&server.base_url());
+        let mut client = client(&server.base_url());
 
         let http_mock = server
             .mock_async(|when, then| {
@@ -464,7 +464,7 @@ mod tests {
     #[tokio::test]
     async fn test_finish_not_found() {
         let server = MockServer::start_async().await;
-        let client = client(&server.base_url());
+        let mut client = client(&server.base_url());
 
         let http_mock = server
             .mock_async(|when, then| {
@@ -491,7 +491,7 @@ mod tests {
     #[tokio::test]
     async fn test_finish_conflict() {
         let server = MockServer::start_async().await;
-        let client = client(&server.base_url());
+        let mut client = client(&server.base_url());
 
         let http_mock = server
             .mock_async(|when, then| {
@@ -518,7 +518,7 @@ mod tests {
     #[tokio::test]
     async fn test_succeed_ok() {
         let server = MockServer::start_async().await;
-        let client = client(&server.base_url());
+        let mut client = client(&server.base_url());
 
         let http_mock = server
             .mock_async(|when, then| {
@@ -541,7 +541,7 @@ mod tests {
     #[tokio::test]
     async fn test_succeed_not_found() {
         let server = MockServer::start_async().await;
-        let client = client(&server.base_url());
+        let mut client = client(&server.base_url());
 
         let http_mock = server
             .mock_async(|when, then| {
@@ -568,7 +568,7 @@ mod tests {
     #[tokio::test]
     async fn test_succeed_conflict() {
         let server = MockServer::start_async().await;
-        let client = client(&server.base_url());
+        let mut client = client(&server.base_url());
 
         let http_mock = server
             .mock_async(|when, then| {
@@ -595,7 +595,7 @@ mod tests {
     #[tokio::test]
     async fn test_heartbeat_ok() {
         let server = MockServer::start_async().await;
-        let client = client(&server.base_url());
+        let mut client = client(&server.base_url());
 
         let http_mock = server
             .mock_async(|when, then| {
@@ -616,7 +616,7 @@ mod tests {
     #[tokio::test]
     async fn test_heartbeat_token_refresh() {
         let server = MockServer::start_async().await;
-        let client = client(&server.base_url());
+        let mut client = client(&server.base_url());
 
         let http_mock = server
             .mock_async(|when, then| {
@@ -650,7 +650,7 @@ mod tests {
     #[tokio::test]
     async fn test_heartbeat_not_found() {
         let server = MockServer::start_async().await;
-        let client = client(&server.base_url());
+        let mut client = client(&server.base_url());
 
         let http_mock = server
             .mock_async(|when, then| {
@@ -675,7 +675,7 @@ mod tests {
     #[tokio::test]
     async fn test_heartbeat_conflict() {
         let server = MockServer::start_async().await;
-        let client = client(&server.base_url());
+        let mut client = client(&server.base_url());
 
         let http_mock = server
             .mock_async(|when, then| {

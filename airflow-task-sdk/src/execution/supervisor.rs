@@ -112,7 +112,7 @@ where
 {
     async fn start(
         what: &'a TaskInstance,
-        client: C,
+        mut client: C,
         dag_bag: &'static DagBag,
         time_provider: T,
         runtime: &'a R,
@@ -251,7 +251,7 @@ where
     }
 
     async fn update_task_state_if_needed(
-        &self,
+        &mut self,
         state: ExecutionResultTIState,
     ) -> Result<(), ExecutionApiError<C::Error>> {
         let id = self.ti.id();
