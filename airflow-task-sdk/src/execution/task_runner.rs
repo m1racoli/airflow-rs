@@ -48,10 +48,7 @@ impl<C: LocalExecutionApiClient, T: TimeProvider> TaskRunner<C, T> {
         // TODO call on_execute_callback
         let (state, error) = match task.execute(context).await {
             Ok(_) => {
-                let when = self.time_provider.now();
-                self.client
-                    .task_instances_succeed(&ti.id, &when, &[], &[], None)
-                    .await?;
+                self._handle_current_task_success(ti, context).await?;
                 (ExecutionResultTIState::Success, None)
             }
             Err(error) => (ExecutionResultTIState::Failed, Some(error)),
@@ -76,6 +73,18 @@ impl<C: LocalExecutionApiClient, T: TimeProvider> TaskRunner<C, T> {
         // - push xcom for operator extra links
         // - set rendered template fields
         // - run callbacks
+    }
+
+    async fn _handle_current_task_success(
+        &mut self,
+        ti: &RuntimeTaskInstance,
+        _context: &Context,
+    ) -> Result<(), ExecutionError<C>> {
+        let when = self.time_provider.now();
+        self.client
+            .task_instances_succeed(&ti.id, &when, &[], &[], None)
+            .await?;
+        Ok(())
     }
 
     async fn _main(
