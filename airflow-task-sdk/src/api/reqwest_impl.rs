@@ -97,7 +97,7 @@ impl ExecutionApiClient for ReqwestExecutionApiClient {
         when: &UtcDateTime,
     ) -> Result<TIRunContext, ExecutionApiError<Self::Error>> {
         let path = format!("task-instances/{id}/run");
-        let body = TIEnterRunningPayload {
+        let body = TIEnterRunningPayloadBody {
             state: TaskInstanceState::Running,
             hostname,
             unixname,
@@ -120,7 +120,7 @@ impl ExecutionApiClient for ReqwestExecutionApiClient {
         rendered_map_index: Option<&str>,
     ) -> Result<(), ExecutionApiError<Self::Error>> {
         let path = format!("task-instances/{id}/state");
-        let body = TITerminalStatePayload {
+        let body = TITerminalStatePayloadBody {
             state,
             end_date: when,
             rendered_map_index,
@@ -151,7 +151,7 @@ impl ExecutionApiClient for ReqwestExecutionApiClient {
         rendered_map_index: Option<&str>,
     ) -> Result<(), ExecutionApiError<Self::Error>> {
         let path = format!("task-instances/{id}/state");
-        let body = TISuccessStatePayload {
+        let body = TISuccessStatePayloadBody {
             state: TaskInstanceState::Success,
             end_date: when,
             task_outlets,
@@ -195,7 +195,7 @@ impl ExecutionApiClient for ReqwestExecutionApiClient {
         pid: u32,
     ) -> Result<(), ExecutionApiError<Self::Error>> {
         let path = format!("task-instances/{id}/heartbeat");
-        let body = TIHeartbeatInfo { hostname, pid };
+        let body = TIHeartbeatInfoBody { hostname, pid };
         let response = self
             .request(Method::PUT, &path, Some(&body))?
             .send()

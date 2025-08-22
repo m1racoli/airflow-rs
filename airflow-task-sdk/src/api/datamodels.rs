@@ -101,8 +101,17 @@ pub struct TIRunContext {
     pub should_retry: bool,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TIEnterRunningPayload {
+    pub state: TaskInstanceState,
+    pub hostname: String,
+    pub unixname: String,
+    pub pid: u32,
+    pub start_date: UtcDateTime,
+}
+
 #[derive(Debug, Clone, Serialize)]
-pub struct TIEnterRunningPayload<'a> {
+pub struct TIEnterRunningPayloadBody<'a> {
     pub state: TaskInstanceState,
     pub hostname: &'a str,
     pub unixname: &'a str,
@@ -110,15 +119,53 @@ pub struct TIEnterRunningPayload<'a> {
     pub start_date: &'a UtcDateTime,
 }
 
+impl<'a> From<&'a TIEnterRunningPayload> for TIEnterRunningPayloadBody<'a> {
+    fn from(payload: &'a TIEnterRunningPayload) -> Self {
+        TIEnterRunningPayloadBody {
+            state: payload.state,
+            hostname: &payload.hostname,
+            unixname: &payload.unixname,
+            pid: payload.pid,
+            start_date: &payload.start_date,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TITerminalStatePayload {
+    pub state: TerminalTIStateNonSuccess,
+    pub end_date: UtcDateTime,
+    pub rendered_map_index: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize)]
-pub struct TITerminalStatePayload<'a> {
+pub struct TITerminalStatePayloadBody<'a> {
     pub state: TerminalTIStateNonSuccess,
     pub end_date: &'a UtcDateTime,
     pub rendered_map_index: Option<&'a str>,
 }
 
+impl<'a> From<&'a TITerminalStatePayload> for TITerminalStatePayloadBody<'a> {
+    fn from(payload: &'a TITerminalStatePayload) -> Self {
+        TITerminalStatePayloadBody {
+            state: payload.state,
+            end_date: &payload.end_date,
+            rendered_map_index: payload.rendered_map_index.as_deref(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TISuccessStatePayload {
+    pub state: TaskInstanceState, // TODO tag success
+    pub end_date: UtcDateTime,
+    pub task_outlets: Vec<AssetProfile>,
+    pub outlet_events: Vec<()>, // TODO outlet events
+    pub rendered_map_index: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize)]
-pub struct TISuccessStatePayload<'a> {
+pub struct TISuccessStatePayloadBody<'a> {
     pub state: TaskInstanceState, // TODO tag success
     pub end_date: &'a UtcDateTime,
     pub task_outlets: &'a [AssetProfile],
@@ -126,8 +173,35 @@ pub struct TISuccessStatePayload<'a> {
     pub rendered_map_index: Option<&'a str>,
 }
 
+impl<'a> From<&'a TISuccessStatePayload> for TISuccessStatePayloadBody<'a> {
+    fn from(payload: &'a TISuccessStatePayload) -> Self {
+        TISuccessStatePayloadBody {
+            state: payload.state,
+            end_date: &payload.end_date,
+            task_outlets: &payload.task_outlets,
+            outlet_events: &payload.outlet_events,
+            rendered_map_index: payload.rendered_map_index.as_deref(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TIHeartbeatInfo {
+    pub hostname: String,
+    pub pid: u32,
+}
+
 #[derive(Debug, Clone, Serialize)]
-pub struct TIHeartbeatInfo<'a> {
+pub struct TIHeartbeatInfoBody<'a> {
     pub hostname: &'a str,
     pub pid: u32,
+}
+
+impl<'a> From<&'a TIHeartbeatInfo> for TIHeartbeatInfoBody<'a> {
+    fn from(info: &'a TIHeartbeatInfo) -> Self {
+        TIHeartbeatInfoBody {
+            hostname: &info.hostname,
+            pid: info.pid,
+        }
+    }
 }
