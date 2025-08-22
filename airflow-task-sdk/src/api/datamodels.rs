@@ -11,7 +11,7 @@ cfg_if::cfg_if! {
 
 use airflow_common::{
     datetime::UtcDateTime,
-    utils::{DagRunType, TaskInstanceState},
+    utils::{DagRunType, TaskInstanceState, TerminalTIStateNonSuccess},
 };
 use serde::{Deserialize, Serialize};
 
@@ -99,4 +99,35 @@ pub struct TIRunContext {
     // next_kwargs: (),
     // pub xcom_keys_to_clear: Vec<String>,
     pub should_retry: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct TIEnterRunningPayload<'a> {
+    pub state: TaskInstanceState,
+    pub hostname: &'a str,
+    pub unixname: &'a str,
+    pub pid: u32,
+    pub start_date: &'a UtcDateTime,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct TITerminalStatePayload<'a> {
+    pub state: TerminalTIStateNonSuccess,
+    pub end_date: &'a UtcDateTime,
+    pub rendered_map_index: Option<&'a str>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct TISuccessStatePayload<'a> {
+    pub state: TaskInstanceState, // TODO tag success
+    pub end_date: &'a UtcDateTime,
+    pub task_outlets: &'a [AssetProfile],
+    pub outlet_events: &'a [()], // TODO outlet events
+    pub rendered_map_index: Option<&'a str>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct TIHeartbeatInfo<'a> {
+    pub hostname: &'a str,
+    pub pid: u32,
 }

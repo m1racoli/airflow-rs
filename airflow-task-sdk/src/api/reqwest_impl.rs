@@ -1,10 +1,6 @@
 use std::sync::{Arc, RwLock};
 
-use crate::api::{
-    AssetProfile, ExecutionApiClient, ExecutionApiClientFactory, ExecutionApiError,
-    InactiveAssetsResponse, PrevSuccessfulDagRunResponse, TICount, TIRunContext,
-    TaskRescheduleStartDate, TaskStatesResponse,
-};
+use crate::api::{ExecutionApiClient, ExecutionApiClientFactory, ExecutionApiError, datamodels::*};
 use airflow_common::{
     datetime::UtcDateTime,
     executors::UniqueTaskInstanceId,
@@ -277,37 +273,6 @@ impl ExecutionApiClient for ReqwestExecutionApiClient {
     ) -> Result<InactiveAssetsResponse, ExecutionApiError<Self::Error>> {
         todo!()
     }
-}
-
-#[derive(Debug, Clone, Serialize)]
-struct TIEnterRunningPayload<'a> {
-    state: TaskInstanceState,
-    hostname: &'a str,
-    unixname: &'a str,
-    pid: u32,
-    start_date: &'a UtcDateTime,
-}
-
-#[derive(Debug, Clone, Serialize)]
-struct TITerminalStatePayload<'a> {
-    state: TerminalTIStateNonSuccess,
-    end_date: &'a UtcDateTime,
-    rendered_map_index: Option<&'a str>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-struct TISuccessStatePayload<'a> {
-    state: TaskInstanceState, // TODO tag success
-    end_date: &'a UtcDateTime,
-    task_outlets: &'a [AssetProfile],
-    outlet_events: &'a [()], // TODO outlet events
-    rendered_map_index: Option<&'a str>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-struct TIHeartbeatInfo<'a> {
-    hostname: &'a str,
-    pid: u32,
 }
 
 #[cfg(test)]

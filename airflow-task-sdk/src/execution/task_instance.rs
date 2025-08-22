@@ -14,7 +14,7 @@ use airflow_common::{
     utils::{MapIndex, TaskInstanceState},
 };
 
-use crate::{api::TIRunContext, definitions::Context, execution::StartupDetails};
+use crate::{api::datamodels::TIRunContext, definitions::Context, execution::StartupDetails};
 
 #[derive(Debug)]
 pub struct RuntimeTaskInstance {
