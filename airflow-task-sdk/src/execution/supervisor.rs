@@ -25,7 +25,6 @@ use log::{debug, error, info, warn};
 static HEARTBEAT_TIMEOUT: u64 = 300; // seconds
 static MIN_HEARTBEAT_INTERVAL: u64 = 5; // seconds
 static MAX_FAILED_HEARTBEATS: usize = 3;
-static EXECUTION_API_SERVER_URL: &str = "http://localhost:28080/execution";
 
 pub async fn supervise<F, T, R>(
     task: ExecuteTask,
@@ -33,6 +32,7 @@ pub async fn supervise<F, T, R>(
     time_provider: T,
     dag_bag: &'static DagBag,
     runtime: &R,
+    server: &str,
 ) -> bool
 where
     F: LocalExecutionApiClientFactory + 'static,
@@ -47,7 +47,7 @@ where
     // logging setup?
     // init secrets backend?
 
-    let client = match client_factory.create(EXECUTION_API_SERVER_URL, task.token()) {
+    let client = match client_factory.create(server, task.token()) {
         Ok(c) => c,
         Err(e) => {
             error!("Failed to create execution API client: {}", e);

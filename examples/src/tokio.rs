@@ -25,6 +25,9 @@ use log::debug;
 use tokio::{sync::mpsc, task::JoinHandle};
 use tracing::{error, info};
 
+// TODO where should this be defined?
+static EXECUTION_API_SERVER_URL: &str = "http://localhost:28080/execution";
+
 #[derive(Debug)]
 pub struct TokioEdgeJob {
     ti_key: TaskInstanceKey,
@@ -143,6 +146,7 @@ where
                 time_provider,
                 dag_bag,
                 &runtime,
+                EXECUTION_API_SERVER_URL,
             )
             .await;
             intercom.send(IntercomMessage::JobCompleted(key)).await.ok();
