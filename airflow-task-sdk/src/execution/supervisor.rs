@@ -34,7 +34,6 @@ pub async fn supervise<F, T, R>(
 ) -> bool
 where
     F: LocalExecutionApiClientFactory + 'static,
-    F::Client: Clone,
     T: TimeProvider + Clone + 'static,
     R: LocalTaskRuntime<T>,
 {
@@ -107,7 +106,7 @@ struct ActivityTask<'a, C: LocalExecutionApiClient, T: TimeProvider, R: LocalTas
 
 impl<'a, C, T, R> ActivityTask<'a, C, T, R>
 where
-    C: LocalExecutionApiClient + Clone + 'static,
+    C: LocalExecutionApiClient + 'static,
     T: TimeProvider + Clone + 'static,
     R: LocalTaskRuntime<T>,
 {

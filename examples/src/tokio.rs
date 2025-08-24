@@ -106,7 +106,7 @@ impl<F: ExecutionApiClientFactory + Default> Default for TokioRuntime<F> {
 impl<F> WorkerRuntime for TokioRuntime<F>
 where
     F: ExecutionApiClientFactory + Clone + 'static,
-    F::Client: Clone + Sync,
+    F::Client: Sync,
     <F::Client as ExecutionApiClient>::Error: Send,
 {
     type Job = TokioEdgeJob;

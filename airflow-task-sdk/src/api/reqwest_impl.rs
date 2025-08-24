@@ -25,7 +25,7 @@ impl ExecutionApiClientFactory for ReqwestExecutionApiClientFactory {
 static API_VERSION: &str = "2025-08-10";
 
 /// An ExecutionAPIClient implementation using Reqwest.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct ReqwestExecutionApiClient {
     client: reqwest::Client,
     base_url: String,
