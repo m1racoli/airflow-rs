@@ -1,5 +1,3 @@
-use std::sync::{Arc, RwLock};
-
 use crate::api::{ExecutionApiClient, ExecutionApiClientFactory, ExecutionApiError, datamodels::*};
 use airflow_common::{
     datetime::UtcDateTime,
@@ -29,7 +27,7 @@ static API_VERSION: &str = "2025-08-10";
 pub struct ReqwestExecutionApiClient {
     client: reqwest::Client,
     base_url: String,
-    token: Arc<RwLock<SecretString>>,
+    token: SecretString,
 }
 
 impl ReqwestExecutionApiClient {
@@ -47,7 +45,7 @@ impl ReqwestExecutionApiClient {
         Ok(Self {
             client,
             base_url: base_url.to_string(),
-            token: Arc::new(RwLock::new(token.clone())),
+            token: token.clone(),
         })
     }
 
@@ -57,11 +55,10 @@ impl ReqwestExecutionApiClient {
         path: &str,
         json: Option<&T>,
     ) -> Result<reqwest::RequestBuilder, reqwest::Error> {
-        let r = self.token.read().unwrap();
         let builder = self
             .client
             .request(method, format!("{}/{}", self.base_url, path))
-            .header("authorization", format!("Bearer {}", r.secret()));
+            .header("authorization", format!("Bearer {}", self.token.secret()));
         let builder = if let Some(json) = json {
             builder.json(json)
         } else {
@@ -204,8 +201,7 @@ impl ExecutionApiClient for ReqwestExecutionApiClient {
 
         if let Some(token) = response.headers().get("Refreshed-API-Token") {
             let token = token.to_str().unwrap();
-            let mut w = self.token.write().unwrap();
-            *w = token.into();
+            self.token = token.into();
             // TODO debug logging
         }
         Ok(())
