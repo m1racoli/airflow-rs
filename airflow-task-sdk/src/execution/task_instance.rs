@@ -14,10 +14,15 @@ use airflow_common::{
     utils::{MapIndex, TaskInstanceState},
 };
 
-use crate::{api::datamodels::TIRunContext, definitions::Context, execution::StartupDetails};
+use crate::{
+    api::datamodels::TIRunContext,
+    definitions::{Context, DagBag, Task},
+    execution::{ExecutionError, StartupDetails},
+};
 
 #[derive(Debug)]
-pub struct RuntimeTaskInstance {
+pub struct RuntimeTaskInstance<'d> {
+    pub task: &'d Task,
     pub id: UniqueTaskInstanceId,
     pub task_id: String,
     pub dag_id: String,
@@ -31,7 +36,7 @@ pub struct RuntimeTaskInstance {
     pub state: TaskInstanceState,
 }
 
-impl RuntimeTaskInstance {
+impl RuntimeTaskInstance<'_> {
     pub fn get_template_context(&self) -> Context {
         Context {
             dag_id: self.dag_id.clone(),
@@ -43,9 +48,22 @@ impl RuntimeTaskInstance {
     }
 }
 
-impl From<StartupDetails> for RuntimeTaskInstance {
-    fn from(details: StartupDetails) -> Self {
-        RuntimeTaskInstance {
+impl<'d> TryFrom<(StartupDetails, &'d DagBag)> for RuntimeTaskInstance<'d> {
+    type Error = ExecutionError;
+    fn try_from((details, dag_bag): (StartupDetails, &'d DagBag)) -> Result<Self, Self::Error> {
+        let dag_id = details.ti.dag_id();
+        let task_id = details.ti.task_id();
+
+        // TODO log errors if not found
+        let dag = dag_bag
+            .get_dag(dag_id)
+            .ok_or_else(|| ExecutionError::DagNotFound(dag_id.to_string()))?;
+        let task = dag
+            .get_task(task_id)
+            .ok_or_else(|| ExecutionError::TaskNotFound(dag_id.to_string(), task_id.to_string()))?;
+
+        Ok(RuntimeTaskInstance {
+            task,
             id: details.ti.id(),
             task_id: details.ti.task_id().to_string(),
             dag_id: details.ti.dag_id().to_string(),
@@ -57,6 +75,6 @@ impl From<StartupDetails> for RuntimeTaskInstance {
             max_tries: details.ti_context.max_tries,
             start_date: details.start_date,
             state: TaskInstanceState::Running,
-        }
+        })
     }
 }

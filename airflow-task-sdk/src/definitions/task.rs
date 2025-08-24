@@ -1,15 +1,11 @@
-cfg_if::cfg_if! {
-    if #[cfg(feature = "std")] {
-        use std::pin::Pin;
-    } else {
-        extern crate alloc;
-        use alloc::boxed::Box;
-        use alloc::string::String;
-        use alloc::string::ToString;
-        use core::future::Future;
-        use core::pin::Pin;
-    }
-}
+extern crate alloc;
+use alloc::boxed::Box;
+use alloc::string::String;
+use alloc::string::ToString;
+use core::fmt;
+use core::fmt::Pointer;
+use core::future::Future;
+use core::pin::Pin;
 
 use crate::definitions::{Context, Operator, xcom::XCom};
 
@@ -21,6 +17,7 @@ pub enum TaskError {
     Unknown,
 }
 
+#[derive(Debug)]
 pub struct Task {
     task_id: String,
     operator: Box<dyn DynOperator>,
@@ -45,6 +42,12 @@ impl Task {
 }
 
 type BoxedTaskResult = Result<Box<(dyn XCom)>, TaskError>;
+
+impl fmt::Debug for Box<dyn DynOperator> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.as_ref().fmt(f)
+    }
+}
 
 trait DynOperator: Send + Sync + 'static {
     fn execute_box<'t>(

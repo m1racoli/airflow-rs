@@ -10,7 +10,7 @@ use airflow_common::{
 
 use crate::{
     api::datamodels::{TIRunContext, TISuccessStatePayload},
-    definitions::{Context, DagBag, Task, TaskError},
+    definitions::{Context, DagBag, TaskError},
     execution::{
         ExecutionResultTIState, LocalSupervisorComms, RuntimeTaskInstance, SupervisorCommsError,
         comms::SupervisorClient,
@@ -55,14 +55,14 @@ impl<C: LocalSupervisorComms, T: TimeProvider> TaskRunner<C, T> {
 
     async fn run(
         &mut self,
-        task: &Task,
-        ti: &mut RuntimeTaskInstance,
+        ti: &mut RuntimeTaskInstance<'_>,
         context: &Context,
     ) -> Result<(ExecutionResultTIState, Option<TaskError>), ExecutionError> {
         // TODO call on_execute_callback
+        let task = ti.task;
         let (state, error) = match task.execute(context).await {
             Ok(_) => {
-                self._handle_current_task_success(ti, context).await?;
+                self.handle_current_task_success(ti, context).await?;
                 (ExecutionResultTIState::Success, None)
             }
             Err(error) => (ExecutionResultTIState::Failed, Some(error)),
@@ -73,7 +73,7 @@ impl<C: LocalSupervisorComms, T: TimeProvider> TaskRunner<C, T> {
 
     async fn finalize(
         &self,
-        ti: &RuntimeTaskInstance,
+        ti: &RuntimeTaskInstance<'_>,
         state: ExecutionResultTIState,
         context: &Context,
         error: Option<TaskError>,
@@ -89,9 +89,9 @@ impl<C: LocalSupervisorComms, T: TimeProvider> TaskRunner<C, T> {
         // - run callbacks
     }
 
-    async fn _handle_current_task_success(
+    async fn handle_current_task_success(
         &mut self,
-        _ti: &RuntimeTaskInstance,
+        _ti: &RuntimeTaskInstance<'_>,
         _context: &Context,
     ) -> Result<(), ExecutionError> {
         let end_date = self.time_provider.now();
@@ -109,30 +109,20 @@ impl<C: LocalSupervisorComms, T: TimeProvider> TaskRunner<C, T> {
         Ok(())
     }
 
-    async fn startup(
+    async fn startup<'d>(
         &self,
         details: StartupDetails,
-    ) -> Result<(RuntimeTaskInstance, Context), ExecutionError> {
-        let ti = RuntimeTaskInstance::from(details);
+        dag_bag: &'d DagBag,
+    ) -> Result<(RuntimeTaskInstance<'d>, Context), ExecutionError> {
+        let ti = RuntimeTaskInstance::try_from((details, dag_bag))?;
         let context = ti.get_template_context();
         Ok((ti, context))
     }
 
     async fn _main(mut self, what: StartupDetails, dag_bag: &DagBag) -> Result<(), ExecutionError> {
-        let (mut ti, context) = self.startup(what).await?;
+        let (mut ti, context) = self.startup(what, dag_bag).await?;
 
-        let dag_id = ti.dag_id.clone();
-        let task_id = ti.task_id.clone();
-
-        // TODO log errors if not found
-        let dag = dag_bag
-            .get_dag(&dag_id)
-            .ok_or_else(|| ExecutionError::DagNotFound(ti.dag_id.clone()))?;
-        let task = dag
-            .get_task(&task_id)
-            .ok_or_else(|| ExecutionError::TaskNotFound(ti.dag_id.clone(), ti.task_id.clone()))?;
-
-        let (state, error) = self.run(task, &mut ti, &context).await?;
+        let (state, error) = self.run(&mut ti, &context).await?;
         self.finalize(&ti, state, &context, error).await;
         // TODO communicate task result properly
         Ok(())
