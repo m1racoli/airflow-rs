@@ -109,9 +109,17 @@ impl<C: LocalSupervisorComms, T: TimeProvider> TaskRunner<C, T> {
         Ok(())
     }
 
-    async fn _main(mut self, what: StartupDetails, dag_bag: &DagBag) -> Result<(), ExecutionError> {
-        let mut ti = RuntimeTaskInstance::from(what);
+    async fn startup(
+        &self,
+        details: StartupDetails,
+    ) -> Result<(RuntimeTaskInstance, Context), ExecutionError> {
+        let ti = RuntimeTaskInstance::from(details);
         let context = ti.get_template_context();
+        Ok((ti, context))
+    }
+
+    async fn _main(mut self, what: StartupDetails, dag_bag: &DagBag) -> Result<(), ExecutionError> {
+        let (mut ti, context) = self.startup(what).await?;
 
         let dag_id = ti.dag_id.clone();
         let task_id = ti.task_id.clone();
