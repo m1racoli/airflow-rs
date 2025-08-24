@@ -6,13 +6,23 @@ cfg_if::cfg_if! {
     }
 }
 
-use airflow_common::datetime::TimeProvider;
+use airflow_common::{
+    datetime::{TimeProvider, UtcDateTime},
+    executors::TaskInstance,
+};
 
 use crate::{
-    api::{ExecutionApiError, LocalExecutionApiClient},
+    api::{ExecutionApiError, LocalExecutionApiClient, datamodels::TIRunContext},
     definitions::{Context, DagBag, Task, TaskError},
-    execution::{ExecutionResultTIState, RuntimeTaskInstance, StartupDetails},
+    execution::{ExecutionResultTIState, RuntimeTaskInstance},
 };
+
+#[derive(Debug)]
+pub struct StartupDetails {
+    pub ti: TaskInstance,
+    pub start_date: UtcDateTime,
+    pub ti_context: TIRunContext,
+}
 
 /// An error which can occur during task execution outside the task itself.
 #[derive(thiserror::Error, Debug)]
