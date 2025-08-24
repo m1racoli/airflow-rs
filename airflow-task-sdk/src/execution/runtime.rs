@@ -1,34 +1,43 @@
-cfg_if::cfg_if! {
-    if #[cfg(feature = "std")] {
-        use std::time::Duration;
-    } else {
-        use core::time::Duration;
-    }
-}
+use core::time::Duration;
 
 use airflow_common::datetime::TimeProvider;
 
 use crate::{
-    api::LocalExecutionApiClient,
     definitions::DagBag,
-    execution::{ExecutionError, ExecutionResultTIState, StartupDetails},
+    execution::{ExecutionError, StartupDetails, SupervisorCommsError, ToSupervisor, ToTask},
 };
 
-pub trait TaskHandle<C>:
-    Future<Output = Result<ExecutionResultTIState, ExecutionError<C>>> + Unpin
-where
-    C: LocalExecutionApiClient,
-{
+#[derive(Debug)]
+pub enum ServiceResult {
+    Comms(ToSupervisor),
+    None,
+    Terminated(Result<(), ExecutionError>),
+}
+
+impl From<ExecutionError> for ServiceResult {
+    fn from(e: ExecutionError) -> Self {
+        ServiceResult::Terminated(Err(e))
+    }
+}
+
+#[trait_variant::make(TaskHandle: Send)]
+pub trait LocalTaskHandle {
+    async fn service(&mut self, timeout: Duration) -> ServiceResult;
+
+    // TODO rename to kill to reflect Python equivalent
     fn abort(&self);
+
+    /// Send a response to the task.
+    /// TODO should this return a result?
+    async fn respond(&mut self, msg: Result<ToTask, SupervisorCommsError>);
 }
 
 #[trait_variant::make(TaskRuntime: Send)]
-pub trait LocalTaskRuntime<C, T>
+pub trait LocalTaskRuntime<T>
 where
-    C: LocalExecutionApiClient,
     T: TimeProvider,
 {
-    type ActivityHandle: TaskHandle<C>;
+    type TaskHandle: LocalTaskHandle;
     type Instant: Copy;
 
     fn now(&self) -> Self::Instant;
@@ -39,15 +48,8 @@ where
 
     fn start(
         &self,
-        client: C,
         time_provider: T,
         details: StartupDetails,
         dag_bag: &'static DagBag,
-    ) -> Self::ActivityHandle;
-
-    async fn wait(
-        &self,
-        handle: &mut Self::ActivityHandle,
-        timeout: Duration,
-    ) -> Option<Result<ExecutionResultTIState, ExecutionError<C>>>;
+    ) -> Self::TaskHandle;
 }

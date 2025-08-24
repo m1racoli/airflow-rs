@@ -1,25 +1,23 @@
-cfg_if::cfg_if! {
-    if #[cfg(feature = "std")] {
-        use std::cmp;
-        use std::time;
-    } else {
-        extern crate alloc;
-        use alloc::string::ToString;
-        use core::cmp;
-        use core::time;
-    }
-}
+extern crate alloc;
+use alloc::string::ToString;
+use core::cmp;
+use core::time;
 
-use crate::{
-    api::{ExecutionApiError, LocalExecutionApiClient, LocalExecutionApiClientFactory},
-    definitions::DagBag,
-    execution::{ExecutionResultTIState, LocalTaskRuntime, StartupDetails, TaskHandle},
-};
 use airflow_common::{
     datetime::TimeProvider,
     executors::{ExecuteTask, TaskInstance},
 };
 use log::{debug, error, info, warn};
+
+use crate::{
+    api::{ExecutionApiError, LocalExecutionApiClient, LocalExecutionApiClientFactory},
+    definitions::DagBag,
+    execution::{
+        ExecutionError, ExecutionResultTIState, LocalTaskRuntime, StartupDetails,
+        SupervisorCommsError, ToSupervisor, ToTask,
+        runtime::{LocalTaskHandle, ServiceResult},
+    },
+};
 
 // TODO conf
 static HEARTBEAT_TIMEOUT: u64 = 300; // seconds
@@ -38,7 +36,7 @@ where
     F: LocalExecutionApiClientFactory + 'static,
     F::Client: Clone,
     T: TimeProvider + Clone + 'static,
-    R: LocalTaskRuntime<F::Client, T>,
+    R: LocalTaskRuntime<T>,
 {
     let ti = task.ti();
     debug!("Supervising task: {:?}", ti);
@@ -92,23 +90,26 @@ enum ActivityError<C: LocalExecutionApiClient> {
 }
 
 /// This is an equivalent of ActiveSubprocess in original Airflow, but async.
-struct ActivityTask<'a, C: LocalExecutionApiClient, T: TimeProvider, R: LocalTaskRuntime<C, T>> {
+struct ActivityTask<'a, C: LocalExecutionApiClient, T: TimeProvider, R: LocalTaskRuntime<T>> {
     ti: &'a TaskInstance,
     client: C,
     time_provider: T,
-    handle: R::ActivityHandle,
+    handle: R::TaskHandle,
     last_successful_heartbeat: R::Instant,
     last_heartbeat_attempt: R::Instant,
     failed_heartbeats: usize,
     server_terminated: bool,
+    terminal_state: Option<ExecutionResultTIState>,
+    result: Option<Result<(), ExecutionError>>,
     runtime: &'a R,
+    task_end_time: Option<R::Instant>,
 }
 
 impl<'a, C, T, R> ActivityTask<'a, C, T, R>
 where
     C: LocalExecutionApiClient + Clone + 'static,
     T: TimeProvider + Clone + 'static,
-    R: LocalTaskRuntime<C, T>,
+    R: LocalTaskRuntime<T>,
 {
     async fn start(
         what: &'a TaskInstance,
@@ -137,7 +138,7 @@ where
             ti_context,
         };
 
-        let handle = runtime.start(client.clone(), time_provider.clone(), details, dag_bag);
+        let handle = runtime.start(time_provider.clone(), details, dag_bag);
 
         Ok(Self {
             ti: what,
@@ -149,11 +150,21 @@ where
             failed_heartbeats: 0,
             server_terminated: false,
             runtime,
+            // has_error: ,
+            terminal_state: None,
+            result: None,
+            task_end_time: None,
         })
     }
 
     async fn wait(mut self) -> Result<ExecutionResultTIState, ActivityError<C>> {
-        let result = loop {
+        self.monitor().await?;
+        self.update_task_state_if_needed().await?;
+        Ok(self.final_state())
+    }
+
+    async fn monitor(&mut self) -> Result<(), ActivityError<C>> {
+        loop {
             let max_wait_time = cmp::max(
                 0,
                 cmp::min(
@@ -168,31 +179,67 @@ where
 
             let max_wait_time = time::Duration::from_secs(max_wait_time);
 
-            if let Some(r) = self.runtime.wait(&mut self.handle, max_wait_time).await {
-                break r;
+            match self.handle.service(max_wait_time).await {
+                ServiceResult::Comms(msg) => {
+                    let response = self.handle_message(msg).await;
+                    self.handle.respond(response).await;
+                }
+                ServiceResult::None => {}
+                ServiceResult::Terminated(r) => {
+                    self.result = Some(r);
+                    break;
+                }
             }
 
             self.send_heartbeat_if_needed().await?;
             if self.server_terminated {
                 return Err(ActivityError::ServerTerminated);
             }
-        };
 
-        let state = match result {
-            Ok(state) => state,
-            Err(e) => {
-                error!("Task execution failed: {e}");
-                ExecutionResultTIState::Failed
+            self.handle_process_overtime_if_needed().await?;
+        }
+        Ok(())
+    }
+
+    async fn handle_message(&mut self, msg: ToSupervisor) -> Result<ToTask, SupervisorCommsError> {
+        match msg {
+            ToSupervisor::SucceedTask(payload) => {
+                self.terminal_state = Some(ExecutionResultTIState::Success);
+                self.task_end_time = Some(self.runtime.now());
+                self.client
+                    .task_instances_succeed(
+                        &self.ti.id(),
+                        &self.time_provider.now(),
+                        &payload.task_outlets,
+                        &payload.outlet_events,
+                        None,
+                    )
+                    .await?;
+                Ok(ToTask::Empty)
             }
-        };
+        }
+    }
 
-        self.update_task_state_if_needed(state).await?;
-        Ok(state)
+    fn final_state(&self) -> ExecutionResultTIState {
+        match &self.result {
+            Some(r) => match r {
+                Err(_) => ExecutionResultTIState::Failed,
+                Ok(_) => match self.terminal_state {
+                    Some(state) => state,
+                    None => ExecutionResultTIState::Success,
+                },
+            },
+            None => panic!("final_state called before task finished"),
+        }
     }
 
     async fn send_heartbeat_if_needed(&mut self) -> Result<(), ExecutionApiError<C::Error>> {
-        // TODO don't heartbeat if task has completed
         if self.runtime.elapsed(self.last_heartbeat_attempt).as_secs() < MIN_HEARTBEAT_INTERVAL {
+            return Ok(());
+        }
+
+        if self.terminal_state.is_some() {
+            // If the task has finished, and we are in "overtime" (running OL listeners etc) we shouldn't heartbeat
             return Ok(());
         }
 
@@ -250,14 +297,21 @@ where
         }
     }
 
-    async fn update_task_state_if_needed(
+    async fn handle_process_overtime_if_needed(
         &mut self,
-        state: ExecutionResultTIState,
     ) -> Result<(), ExecutionApiError<C::Error>> {
+        if self.terminal_state.is_none() {
+            return Ok(());
+        }
+        // TODO handle over time
+        Ok(())
+    }
+
+    async fn update_task_state_if_needed(&mut self) -> Result<(), ExecutionApiError<C::Error>> {
         let id = self.ti.id();
         let end = self.time_provider.now();
 
-        match state.into() {
+        match self.final_state().into() {
             Some(state) => {
                 self.client
                     .task_instances_finish(&id, state, &end, None)

@@ -1,9 +1,4 @@
-use std::{
-    pin::Pin,
-    process,
-    task::{Context, Poll},
-    time::Duration,
-};
+use std::{process, time::Duration};
 
 use airflow_common::{
     datetime::{StdTimeProvider, TimeProvider},
@@ -17,13 +12,15 @@ use airflow_task_sdk::{
     api::{ExecutionApiClient, ExecutionApiClientFactory},
     definitions::DagBag,
     execution::{
-        ExecutionError, ExecutionResultTIState, StartupDetails, TaskHandle, TaskRunner,
-        TaskRuntime, supervise,
+        ExecutionError, ServiceResult, StartupDetails, SupervisorComms, SupervisorCommsError,
+        TaskHandle, TaskRunner, TaskRuntime, ToSupervisor, ToTask, supervise,
     },
 };
-use log::debug;
-use tokio::{sync::mpsc, task::JoinHandle};
-use tracing::{error, info};
+use log::{debug, error, info};
+use tokio::{
+    sync::{mpsc, oneshot},
+    task::JoinHandle,
+};
 
 // TODO where should this be defined?
 static EXECUTION_API_SERVER_URL: &str = "http://localhost:28080/execution";
@@ -134,7 +131,7 @@ where
 
         let handle = tokio::spawn(async move {
             let key = job.command.ti().ti_key();
-            info!(ti_key = key.to_string(), "Worker task launched.");
+            info!("{}: Worker task launched.", key);
 
             // TODO should the time provider be passed from somewhere?
             let time_provider = StdTimeProvider;
@@ -171,41 +168,58 @@ where
     }
 }
 
-pub struct TokioTaskHandle<C: ExecutionApiClient>(
-    JoinHandle<Result<ExecutionResultTIState, ExecutionError<C>>>,
-);
-
-impl<C> TaskHandle<C> for TokioTaskHandle<C>
-where
-    C: ExecutionApiClient,
-    C::Error: Send,
-{
-    fn abort(&self) {
-        self.0.abort();
-    }
+pub struct TokioTaskHandle {
+    handle: JoinHandle<Result<(), ExecutionError>>,
+    recv: mpsc::Receiver<(
+        ToSupervisor,
+        oneshot::Sender<Result<ToTask, SupervisorCommsError>>,
+    )>,
+    send: Option<oneshot::Sender<Result<ToTask, SupervisorCommsError>>>,
 }
 
-impl<C> Future for TokioTaskHandle<C>
-where
-    C: ExecutionApiClient,
-    C::Error: Send,
-{
-    type Output = Result<ExecutionResultTIState, ExecutionError<C>>;
+impl TaskHandle for TokioTaskHandle {
+    fn abort(&self) {
+        self.handle.abort();
+    }
 
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let this = self.get_mut();
-        let pinned = Pin::new(&mut this.0);
-        match pinned.poll(cx) {
-            Poll::Ready(result) => match result {
-                Ok(res) => Poll::Ready(res),
-                Err(e) => {
-                    if e.is_panic() {
-                        error!("Activity task panicked: {}", e);
-                    }
-                    Poll::Ready(Ok(ExecutionResultTIState::Failed))
+    async fn service(&mut self, timeout: Duration) -> ServiceResult {
+        let timeout = tokio::time::Duration::from_secs(timeout.as_secs());
+
+        tokio::select! {
+            // handle incoming messages from the task
+            msg = self.recv.recv(), if !self.recv.is_closed() => {
+                match msg {
+                    Some((msg, send)) => {
+                        self.send = Some(send);
+                        ServiceResult::Comms(msg)
+                    },
+                    // Channel closed.
+                    None => ServiceResult::None
                 }
             },
-            Poll::Pending => Poll::Pending,
+            // task runner has terminated
+            r = &mut self.handle => match r {
+                Ok(r) => ServiceResult::Terminated(r),
+                Err(e) => {
+                    if e.is_panic() {
+                        ExecutionError::Panicked.into()
+                    } else {
+                        ExecutionError::Cancelled.into()
+                    }
+                }
+            },
+            _ = tokio::time::sleep(timeout) => ServiceResult::None
+        }
+    }
+
+    async fn respond(&mut self, msg: Result<ToTask, SupervisorCommsError>) {
+        match self.send.take() {
+            Some(sender) => {
+                if sender.send(msg).is_err() {
+                    error!("Failed to respond to task. Task is gone.");
+                }
+            }
+            None => panic!("No sender available to send message to task"),
         }
     }
 }
@@ -223,13 +237,11 @@ impl Default for TokioTaskRuntime {
     }
 }
 
-impl<C, T> TaskRuntime<C, T> for TokioTaskRuntime
+impl<T> TaskRuntime<T> for TokioTaskRuntime
 where
-    C: ExecutionApiClient + Send + Sync + 'static,
-    C::Error: Send,
     T: TimeProvider + Send + Sync + 'static,
 {
-    type ActivityHandle = TokioTaskHandle<C>;
+    type TaskHandle = TokioTaskHandle;
     type Instant = std::time::Instant;
 
     fn hostname(&self) -> &str {
@@ -254,29 +266,39 @@ where
 
     fn start(
         &self,
-        client: C,
         time_provider: T,
         details: StartupDetails,
         dag_bag: &'static DagBag,
-    ) -> Self::ActivityHandle {
-        let task_runner = TaskRunner::new(client, time_provider);
+    ) -> Self::TaskHandle {
+        let (send, recv) = mpsc::channel(1);
+        let comms = TokioSupervisorComms(send);
+        let task_runner = TaskRunner::new(comms, time_provider);
         let handle = tokio::spawn(task_runner.main(details, dag_bag));
-        TokioTaskHandle(handle)
+        TokioTaskHandle {
+            handle,
+            recv,
+            send: None,
+        }
     }
+}
 
-    async fn wait(
-        &self,
-        handle: &mut Self::ActivityHandle,
-        duration: Duration,
-    ) -> Option<Result<ExecutionResultTIState, ExecutionError<C>>> {
-        let max_wait_time = duration.as_secs();
-        tokio::select! {
-            _ = tokio::time::sleep(tokio::time::Duration::from_secs(max_wait_time)) => {
-                None
-            }
-            r = handle => {
-                Some(r)
-            }
+pub struct TokioSupervisorComms(
+    mpsc::Sender<(
+        ToSupervisor,
+        oneshot::Sender<Result<ToTask, SupervisorCommsError>>,
+    )>,
+);
+
+impl SupervisorComms for TokioSupervisorComms {
+    async fn send(&self, msg: ToSupervisor) -> Result<ToTask, SupervisorCommsError> {
+        let (send, recv) = oneshot::channel();
+        self.0
+            .send((msg, send))
+            .await
+            .map_err(|e| SupervisorCommsError::Send(e.to_string()))?;
+        match recv.await {
+            Ok(r) => r,
+            Err(e) => Err(SupervisorCommsError::SupervisorGone(e.to_string())),
         }
     }
 }

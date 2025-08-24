@@ -1,20 +1,20 @@
-cfg_if::cfg_if! {
-    if #[cfg(feature = "std")] {
-    } else {
-        extern crate alloc;
-        use alloc::string::String;
-    }
-}
+extern crate alloc;
+use alloc::string::String;
+use alloc::vec;
 
 use airflow_common::{
     datetime::{TimeProvider, UtcDateTime},
     executors::TaskInstance,
+    utils::TaskInstanceState,
 };
 
 use crate::{
-    api::{ExecutionApiError, LocalExecutionApiClient, datamodels::TIRunContext},
+    api::datamodels::{TIRunContext, TISuccessStatePayload},
     definitions::{Context, DagBag, Task, TaskError},
-    execution::{ExecutionResultTIState, RuntimeTaskInstance},
+    execution::{
+        ExecutionResultTIState, LocalSupervisorComms, RuntimeTaskInstance, SupervisorCommsError,
+        comms::SupervisorClient,
+    },
 };
 
 #[derive(Debug)]
@@ -26,25 +26,29 @@ pub struct StartupDetails {
 
 /// An error which can occur during task execution outside the task itself.
 #[derive(thiserror::Error, Debug)]
-pub enum ExecutionError<C: LocalExecutionApiClient> {
+pub enum ExecutionError {
     #[error("DAG not found: {0}")]
     DagNotFound(String),
     #[error("Task not found in DAG: {0}.{1}")]
     TaskNotFound(String, String),
-    #[error("Failed to call execution API: {0}")]
-    ExecutionApi(#[from] ExecutionApiError<C::Error>),
+    #[error("Failed to communicate with supervisor: {0}")]
+    SupervisorComms(#[from] SupervisorCommsError),
+    #[error("Task runner has been cancelled")]
+    Cancelled,
+    #[error("Task runner has panicked")]
+    Panicked,
 }
 
 #[derive(Debug)]
-pub struct TaskRunner<C: LocalExecutionApiClient, T: TimeProvider> {
-    client: C,
+pub struct TaskRunner<C: LocalSupervisorComms, T: TimeProvider> {
+    client: SupervisorClient<C>,
     time_provider: T,
 }
 
-impl<C: LocalExecutionApiClient, T: TimeProvider> TaskRunner<C, T> {
-    pub fn new(client: C, time_provider: T) -> Self {
+impl<C: LocalSupervisorComms, T: TimeProvider> TaskRunner<C, T> {
+    pub fn new(comms: C, time_provider: T) -> Self {
         Self {
-            client,
+            client: comms.into(),
             time_provider,
         }
     }
@@ -54,7 +58,7 @@ impl<C: LocalExecutionApiClient, T: TimeProvider> TaskRunner<C, T> {
         task: &Task,
         ti: &mut RuntimeTaskInstance,
         context: &Context,
-    ) -> Result<(ExecutionResultTIState, Option<TaskError>), ExecutionError<C>> {
+    ) -> Result<(ExecutionResultTIState, Option<TaskError>), ExecutionError> {
         // TODO call on_execute_callback
         let (state, error) = match task.execute(context).await {
             Ok(_) => {
@@ -87,21 +91,25 @@ impl<C: LocalExecutionApiClient, T: TimeProvider> TaskRunner<C, T> {
 
     async fn _handle_current_task_success(
         &mut self,
-        ti: &RuntimeTaskInstance,
+        _ti: &RuntimeTaskInstance,
         _context: &Context,
-    ) -> Result<(), ExecutionError<C>> {
-        let when = self.time_provider.now();
-        self.client
-            .task_instances_succeed(&ti.id, &when, &[], &[], None)
-            .await?;
+    ) -> Result<(), ExecutionError> {
+        let end_date = self.time_provider.now();
+        let msg = TISuccessStatePayload {
+            state: TaskInstanceState::Success,
+            end_date,
+            task_outlets: vec![],
+            outlet_events: vec![],
+            rendered_map_index: None,
+        };
+        self.client.succeed_task(msg).await?;
+        // self.client
+        // .task_instances_succeed(&ti.id, &when, &[], &[], None)
+        // .await?;
         Ok(())
     }
 
-    async fn _main(
-        mut self,
-        what: StartupDetails,
-        dag_bag: &DagBag,
-    ) -> Result<ExecutionResultTIState, ExecutionError<C>> {
+    async fn _main(mut self, what: StartupDetails, dag_bag: &DagBag) -> Result<(), ExecutionError> {
         let mut ti = RuntimeTaskInstance::from(what);
         let context = ti.get_template_context();
 
@@ -119,16 +127,12 @@ impl<C: LocalExecutionApiClient, T: TimeProvider> TaskRunner<C, T> {
         let (state, error) = self.run(task, &mut ti, &context).await?;
         self.finalize(&ti, state, &context, error).await;
         // TODO communicate task result properly
-        Ok(state)
+        Ok(())
     }
 
     #[cfg(not(feature = "tracing"))]
     /// Perform the actual task execution with the given startup details
-    pub async fn main(
-        self,
-        what: StartupDetails,
-        dag_bag: &DagBag,
-    ) -> Result<ExecutionResultTIState, ExecutionError<C>> {
+    pub async fn main(self, what: StartupDetails, dag_bag: &DagBag) -> Result<(), ExecutionError> {
         self._main(what, dag_bag).await
     }
 
@@ -137,11 +141,7 @@ impl<C: LocalExecutionApiClient, T: TimeProvider> TaskRunner<C, T> {
     ///
     /// The task execution is instrumented with a special tracing span
     /// which allows us to filter task logs.
-    pub async fn main(
-        self,
-        what: StartupDetails,
-        dag_bag: &DagBag,
-    ) -> Result<ExecutionResultTIState, ExecutionError<C>> {
+    pub async fn main(self, what: StartupDetails, dag_bag: &DagBag) -> Result<(), ExecutionError> {
         use airflow_common::models::TaskInstanceLike;
         use tracing::{Instrument, info_span};
 
