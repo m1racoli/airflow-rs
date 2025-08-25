@@ -57,7 +57,7 @@ impl ReqwestExecutionApiClient {
         let builder = self
             .client
             .request(method, format!("{}/{}", self.base_url, path))
-            .header("authorization", format!("Bearer {}", self.token.secret()));
+            .bearer_auth(self.token.secret());
         Ok(builder)
     }
 
