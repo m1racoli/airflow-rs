@@ -216,6 +216,73 @@ where
                     .await?;
                 Ok(ToTask::Empty)
             }
+            ToSupervisor::GetXCom {
+                key,
+                dag_id,
+                run_id,
+                task_id,
+                map_index,
+                include_prior_dates,
+            } => {
+                let response = self
+                    .client
+                    .xcoms_get(
+                        &dag_id,
+                        &run_id,
+                        &task_id,
+                        &key,
+                        map_index,
+                        include_prior_dates,
+                    )
+                    .await?;
+                Ok(ToTask::XCom(response))
+            }
+            ToSupervisor::GetXComCount {
+                key,
+                dag_id,
+                run_id,
+                task_id,
+            } => {
+                let count = self
+                    .client
+                    .xcoms_head(&dag_id, &run_id, &task_id, &key)
+                    .await?;
+                Ok(ToTask::XComCount(count))
+            }
+            ToSupervisor::SetXCom {
+                key,
+                value,
+                dag_id,
+                run_id,
+                task_id,
+                map_index,
+                mapped_length,
+            } => {
+                self.client
+                    .xcoms_set(
+                        &dag_id,
+                        &run_id,
+                        &task_id,
+                        &key,
+                        &value,
+                        map_index,
+                        mapped_length,
+                    )
+                    .await?;
+                Ok(ToTask::Empty)
+            }
+            ToSupervisor::DeleteXCom {
+                key,
+                dag_id,
+                run_id,
+                task_id,
+                map_index,
+            } => {
+                self.client
+                    .xcoms_delete(&dag_id, &run_id, &task_id, &key, map_index)
+                    .await?;
+                Ok(ToTask::Empty)
+            }
         }
     }
 
