@@ -49,21 +49,15 @@ impl ReqwestExecutionApiClient {
         })
     }
 
-    fn request<T: Serialize + ?Sized>(
+    fn request(
         &self,
         method: Method,
         path: &str,
-        json: Option<&T>,
     ) -> Result<reqwest::RequestBuilder, reqwest::Error> {
         let builder = self
             .client
             .request(method, format!("{}/{}", self.base_url, path))
             .header("authorization", format!("Bearer {}", self.token.secret()));
-        let builder = if let Some(json) = json {
-            builder.json(json)
-        } else {
-            builder
-        };
         Ok(builder)
     }
 
@@ -102,7 +96,8 @@ impl ExecutionApiClient for ReqwestExecutionApiClient {
             start_date: when,
         };
         let response = self
-            .request(Method::PATCH, &path, Some(&body))?
+            .request(Method::PATCH, &path)?
+            .json(&body)
             .send()
             .await?;
         let response = self.handle_response(response).await?;
@@ -123,7 +118,8 @@ impl ExecutionApiClient for ReqwestExecutionApiClient {
             rendered_map_index,
         };
         let response = self
-            .request(Method::PATCH, &path, Some(&body))?
+            .request(Method::PATCH, &path)?
+            .json(&body)
             .send()
             .await?;
         self.handle_response(response).await?;
@@ -156,7 +152,8 @@ impl ExecutionApiClient for ReqwestExecutionApiClient {
             rendered_map_index,
         };
         let response = self
-            .request(Method::PATCH, &path, Some(&body))?
+            .request(Method::PATCH, &path)?
+            .json(&body)
             .send()
             .await?;
         self.handle_response(response).await?;
@@ -193,10 +190,7 @@ impl ExecutionApiClient for ReqwestExecutionApiClient {
     ) -> Result<(), ExecutionApiError<Self::Error>> {
         let path = format!("task-instances/{id}/heartbeat");
         let body = TIHeartbeatInfoBody { hostname, pid };
-        let response = self
-            .request(Method::PUT, &path, Some(&body))?
-            .send()
-            .await?;
+        let response = self.request(Method::PUT, &path)?.json(&body).send().await?;
         let response = self.handle_response(response).await?;
 
         if let Some(token) = response.headers().get("Refreshed-API-Token") {
