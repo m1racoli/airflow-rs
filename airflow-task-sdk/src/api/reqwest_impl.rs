@@ -70,7 +70,7 @@ impl ReqwestExecutionApiClient {
             StatusCode::CONFLICT => Err(ExecutionApiError::Conflict(response.text().await?)),
             _ => match response.error_for_status() {
                 Ok(response) => Ok(response),
-                Err(e) => Err(ExecutionApiError::Other(e)),
+                Err(e) => Err(ExecutionApiError::Client(e)),
             },
         }
     }

@@ -26,7 +26,7 @@ pub enum ExecutionApiError<E: error::Error> {
     #[error("Conflict: {0}")]
     Conflict(String),
     #[error(transparent)]
-    Other(#[from] E),
+    Client(#[from] E),
 }
 
 #[trait_variant::make(ExecutionApiClient: Send)]
