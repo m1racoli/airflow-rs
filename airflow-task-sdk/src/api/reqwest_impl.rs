@@ -447,7 +447,8 @@ mod tests {
                         },
                         "task_reschedule_count": 0,
                         "max_tries": 1,
-                        "should_retry": false
+                        "should_retry": false,
+                        "xcom_keys_to_clear": ["return_value"]
                     }"#,
                 );
             })

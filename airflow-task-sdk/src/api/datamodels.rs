@@ -91,7 +91,7 @@ pub struct TIRunContext {
     // pub upstream_map_indexes: Option<BTreeMap<String, usize>>,
     // pub next_method: Option<String>,
     // next_kwargs: (),
-    // pub xcom_keys_to_clear: Vec<String>,
+    pub xcom_keys_to_clear: Vec<String>,
     pub should_retry: bool,
 }
 

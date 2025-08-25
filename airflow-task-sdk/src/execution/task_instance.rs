@@ -30,10 +30,10 @@ pub struct RuntimeTaskInstance<'d> {
     pub try_number: usize,
     pub map_index: MapIndex,
     pub queued_dttm: Option<UtcDateTime>,
-    pub ti_context: TIRunContext,
     pub max_tries: usize,
     pub start_date: UtcDateTime,
     pub state: TaskInstanceState,
+    pub ti_context_from_server: TIRunContext,
 }
 
 impl RuntimeTaskInstance<'_> {
@@ -62,6 +62,9 @@ impl<'d> TryFrom<(StartupDetails, &'d DagBag)> for RuntimeTaskInstance<'d> {
             .get_task(task_id)
             .ok_or_else(|| ExecutionError::TaskNotFound(dag_id.to_string(), task_id.to_string()))?;
 
+        let max_tries = details.ti_context.max_tries;
+        let ti_context_from_server = details.ti_context;
+
         Ok(RuntimeTaskInstance {
             task,
             id: details.ti.id(),
@@ -71,8 +74,8 @@ impl<'d> TryFrom<(StartupDetails, &'d DagBag)> for RuntimeTaskInstance<'d> {
             try_number: details.ti.try_number(),
             map_index: details.ti.map_index(),
             queued_dttm: details.ti.queued_dttm(),
-            ti_context: details.ti_context.clone(),
-            max_tries: details.ti_context.max_tries,
+            ti_context_from_server,
+            max_tries,
             start_date: details.start_date,
             state: TaskInstanceState::Running,
         })

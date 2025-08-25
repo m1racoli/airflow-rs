@@ -7,10 +7,11 @@ use airflow_common::{
     executors::TaskInstance,
     utils::TaskInstanceState,
 };
+use log::debug;
 
 use crate::{
-    api::datamodels::{TIRunContext, TISuccessStatePayload},
-    definitions::{Context, DagBag, TaskError},
+    api::datamodels::{JsonValue, TIRunContext, TISuccessStatePayload},
+    definitions::{Context, DagBag, JsonSerdeError, TaskError, XCom},
     execution::{
         ExecutionResultTIState, LocalSupervisorComms, RuntimeTaskInstance, SupervisorCommsError,
         comms::SupervisorClient,
@@ -37,6 +38,10 @@ pub enum ExecutionError {
     Cancelled,
     #[error("Task runner has panicked")]
     Panicked,
+    #[error("XCom error occurred: {0}")]
+    XCom(#[from] JsonSerdeError),
+    #[error(transparent)]
+    Serde(#[from] serde_json::Error),
 }
 
 #[derive(Debug)]
@@ -58,10 +63,26 @@ impl<C: LocalSupervisorComms, T: TimeProvider> TaskRunner<C, T> {
         ti: &mut RuntimeTaskInstance<'_>,
         context: &Context,
     ) -> Result<(ExecutionResultTIState, Option<TaskError>), ExecutionError> {
+        // clear the xcom data sent from server
+        for x in ti.ti_context_from_server.xcom_keys_to_clear.iter() {
+            debug!("Clearing XCom key: {}", x);
+            // TODO call XCom backend which also handles purging
+            self.client
+                .delete_xcom(
+                    x.to_string(),
+                    ti.dag_id.to_string(),
+                    ti.run_id.to_string(),
+                    ti.task_id.to_string(),
+                    Some(ti.map_index),
+                )
+                .await?;
+        }
+
         // TODO call on_execute_callback
         let task = ti.task;
         let (state, error) = match task.execute(context).await {
-            Ok(_) => {
+            Ok(result) => {
+                self.push_xcom_if_needed(result, ti).await?;
                 self.handle_current_task_success(ti, context).await?;
                 (ExecutionResultTIState::Success, None)
             }
@@ -109,6 +130,23 @@ impl<C: LocalSupervisorComms, T: TimeProvider> TaskRunner<C, T> {
         Ok(())
     }
 
+    async fn push_xcom_if_needed(
+        &self,
+        result: Box<dyn XCom>,
+        ti: &RuntimeTaskInstance<'_>,
+    ) -> Result<(), ExecutionError> {
+        if !ti.task.do_xcom_push() {
+            return Ok(());
+        }
+
+        // TODO handle if no xcom to push, but has mapped dependants
+        // TODO handle if task is not mapped, but has mapped dependants
+        // TODO handle multiple outputs
+
+        xcom_push(&self.client, ti, "return_value", result, None).await?;
+        Ok(())
+    }
+
     async fn startup<'d>(
         &self,
         details: StartupDetails,
@@ -152,4 +190,28 @@ impl<C: LocalSupervisorComms, T: TimeProvider> TaskRunner<C, T> {
         let span = info_span!(target: "task_context", "run_task", dag_id = dag_id, task_id=task_id, run_id=run_id, try_number = try_number, map_index = map_index);
         self._main(what, dag_bag).instrument(span).await
     }
+}
+
+async fn xcom_push<C: LocalSupervisorComms>(
+    client: &SupervisorClient<C>,
+    ti: &RuntimeTaskInstance<'_>,
+    key: &str,
+    value: Box<dyn XCom>,
+    mapped_length: Option<usize>,
+) -> Result<(), ExecutionError> {
+    // TODO XCom class to handle serialization and custom backends
+    let serialized = value.as_ref().serialize()?;
+    let value: JsonValue = serde_json::from_str(&serialized)?;
+    client
+        .set_xcom(
+            key.to_string(),
+            value,
+            ti.dag_id.to_string(),
+            ti.run_id.to_string(),
+            ti.task_id.to_string(),
+            Some(ti.map_index),
+            mapped_length,
+        )
+        .await?;
+    Ok(())
 }

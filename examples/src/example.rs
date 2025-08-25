@@ -29,9 +29,9 @@ impl Operator for ExampleOperator {
 
 static DAG_BAG: LazyLock<DagBag> = LazyLock::new(|| {
     let operator = ExampleOperator::default();
-    let t = Task::new("run", operator);
+    let task = Task::new("run", operator).with_xcom_push(true);
     let mut dag = Dag::new("example_dag");
-    dag.add_task(t);
+    dag.add_task(task);
     let mut dag_bag = DagBag::default();
     dag_bag.add_dag(dag);
     dag_bag

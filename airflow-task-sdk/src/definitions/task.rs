@@ -21,6 +21,7 @@ pub enum TaskError {
 pub struct Task {
     task_id: String,
     operator: Box<dyn DynOperator>,
+    do_xcom_push: bool,
 }
 
 impl Task {
@@ -28,7 +29,17 @@ impl Task {
         Self {
             task_id: task_id.to_string(),
             operator: Box::new(operator),
+            do_xcom_push: true,
         }
+    }
+
+    pub fn with_xcom_push(mut self, do_xcom_push: bool) -> Self {
+        self.do_xcom_push = do_xcom_push;
+        self
+    }
+
+    pub fn do_xcom_push(&self) -> bool {
+        self.do_xcom_push
     }
 
     pub fn task_id(&self) -> &str {
