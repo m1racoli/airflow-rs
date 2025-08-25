@@ -1,13 +1,7 @@
-cfg_if::cfg_if! {
-    if #[cfg(feature = "std")] {
-        use std::collections::BTreeMap;
-    } else {
-        extern crate alloc;
-        use alloc::string::String;
-        use alloc::collections::BTreeMap;
-        use alloc::vec::Vec;
-    }
-}
+extern crate alloc;
+use alloc::collections::BTreeMap;
+use alloc::string::String;
+use alloc::vec::Vec;
 
 use airflow_common::{
     datetime::UtcDateTime,
@@ -204,4 +198,13 @@ impl<'a> From<&'a TIHeartbeatInfo> for TIHeartbeatInfoBody<'a> {
             pid: info.pid,
         }
     }
+}
+
+pub type JsonValue = serde_json::Value;
+
+/// XCom schema for responses with fields that are needed for Runtime.
+#[derive(Debug, Clone, Deserialize)]
+pub struct XComResponse {
+    pub key: String,
+    pub value: JsonValue,
 }

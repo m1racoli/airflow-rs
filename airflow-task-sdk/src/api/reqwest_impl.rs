@@ -1,12 +1,13 @@
-use crate::api::{ExecutionApiClient, ExecutionApiClientFactory, ExecutionApiError, datamodels::*};
 use airflow_common::{
     datetime::UtcDateTime,
     executors::UniqueTaskInstanceId,
     utils::{MapIndex, SecretString, TaskInstanceState, TerminalTIStateNonSuccess},
 };
+use log::error;
 use reqwest::{Method, Response, StatusCode, header::HeaderMap};
-
 use serde::Serialize;
+
+use crate::api::{ExecutionApiClient, ExecutionApiClientFactory, ExecutionApiError, datamodels::*};
 
 #[derive(Debug, Clone, Default)]
 pub struct ReqwestExecutionApiClientFactory;
@@ -263,6 +264,128 @@ impl ExecutionApiClient for ReqwestExecutionApiClient {
     ) -> Result<InactiveAssetsResponse, ExecutionApiError<Self::Error>> {
         todo!()
     }
+
+    async fn xcoms_head(
+        &mut self,
+        dag_id: &str,
+        run_id: &str,
+        task_id: &str,
+        key: &str,
+    ) -> Result<usize, ExecutionApiError<Self::Error>> {
+        let path = format!("xcoms/{dag_id}/{run_id}/{task_id}/{key}");
+
+        let response = self.request(Method::HEAD, &path)?.send().await?;
+        let response = self.handle_response(response).await?;
+        let value = match response.headers().get("Content-Range") {
+            Some(value) => match value.to_str() {
+                Ok(value) => {
+                    if let Some(v) = value.strip_prefix("map_indexes ") {
+                        v.parse::<usize>().ok()
+                    } else {
+                        None
+                    }
+                }
+                Err(_) => None,
+            },
+            None => None,
+        };
+
+        match value {
+            Some(v) => Ok(v),
+            None => Err(ExecutionApiError::Other(format!(
+                "Unable to parse Content-Range header from HEAD {}",
+                response.url()
+            ))),
+        }
+    }
+
+    async fn xcoms_get(
+        &mut self,
+        dag_id: &str,
+        run_id: &str,
+        task_id: &str,
+        key: &str,
+        map_index: Option<MapIndex>,
+        include_prior_dates: Option<bool>,
+    ) -> Result<XComResponse, ExecutionApiError<Self::Error>> {
+        let path = format!("xcoms/{dag_id}/{run_id}/{task_id}/{key}");
+        let mut query = Vec::new();
+        if let Some(map_index) = map_index {
+            query.push(("map_index", map_index.to_string()));
+        }
+        if let Some(include_prior_dates) = include_prior_dates {
+            query.push(("include_prior_dates", include_prior_dates.to_string()));
+        }
+        let response = self
+            .request(Method::GET, &path)?
+            .query(&query)
+            .send()
+            .await?;
+        match self.handle_response(response).await {
+            Ok(response) => Ok(response.json().await?),
+            Err(ExecutionApiError::NotFound(detail)) => {
+                error!(
+                    "XCom not found. dag_id: {}, run_id: {}, task_id: {}, key: {}, map_index: {:?}, detail: {}",
+                    dag_id, run_id, task_id, key, map_index, detail
+                );
+                Ok(XComResponse {
+                    key: key.to_string(),
+                    value: JsonValue::Null,
+                })
+            }
+            Err(err) => Err(err),
+        }
+    }
+
+    async fn xcoms_set(
+        &mut self,
+        dag_id: &str,
+        run_id: &str,
+        task_id: &str,
+        key: &str,
+        value: &JsonValue,
+        map_index: Option<MapIndex>,
+        mapped_length: Option<usize>,
+    ) -> Result<(), ExecutionApiError<Self::Error>> {
+        let path = format!("xcoms/{dag_id}/{run_id}/{task_id}/{key}");
+        let mut query = Vec::new();
+        if let Some(map_index) = map_index {
+            query.push(("map_index", map_index.to_string()));
+        }
+        if let Some(mapped_length) = mapped_length {
+            query.push(("mapped_length", mapped_length.to_string()));
+        }
+        let response = self
+            .request(Method::POST, &path)?
+            .json(value)
+            .query(&query)
+            .send()
+            .await?;
+        self.handle_response(response).await?;
+        Ok(())
+    }
+
+    async fn xcoms_delete(
+        &mut self,
+        dag_id: &str,
+        run_id: &str,
+        task_id: &str,
+        key: &str,
+        map_index: Option<MapIndex>,
+    ) -> Result<(), ExecutionApiError<Self::Error>> {
+        let path = format!("xcoms/{dag_id}/{run_id}/{task_id}/{key}");
+        let mut query = Vec::new();
+        if let Some(map_index) = map_index {
+            query.push(("map_index", map_index.to_string()));
+        }
+        let response = self
+            .request(Method::DELETE, &path)?
+            .query(&query)
+            .send()
+            .await?;
+        self.handle_response(response).await?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -276,6 +399,7 @@ mod tests {
         utils::{SecretString, TerminalTIStateNonSuccess},
     };
     use httpmock::MockServer;
+    use serde_json::json;
 
     use super::*;
 
@@ -650,5 +774,158 @@ mod tests {
             "Expected Conflict error, got: {:?}",
             result
         );
+    }
+
+    #[tokio::test]
+    async fn test_xcom_head() {
+        let server = MockServer::start_async().await;
+        let mut client = client(&server.base_url());
+
+        let http_mock = server
+            .mock_async(|when, then| {
+                when.method("HEAD")
+                    .path("/xcoms/example_dag/example_run/example_task/example_key")
+                    .header("authorization", "Bearer secret123");
+                then.status(200).header("Content-Range", "map_indexes 42");
+            })
+            .await;
+
+        let result = client
+            .xcoms_head("example_dag", "example_run", "example_task", "example_key")
+            .await;
+
+        http_mock.assert_async().await;
+        let result = result.unwrap();
+        assert_eq!(result, 42);
+    }
+
+    #[tokio::test]
+    async fn test_xcom_get() {
+        let server = MockServer::start_async().await;
+        let mut client = client(&server.base_url());
+
+        let http_mock = server
+            .mock_async(|when, then| {
+                when.method("GET")
+                    .path("/xcoms/example_dag/example_run/example_task/example_key")
+                    .header("authorization", "Bearer secret123");
+                then.status(200).body(
+                    r#"{
+                        "key": "example_key",
+                        "value": {"hello": "world"}
+                    }"#,
+                );
+            })
+            .await;
+
+        let result = client
+            .xcoms_get(
+                "example_dag",
+                "example_run",
+                "example_task",
+                "example_key",
+                None,
+                None,
+            )
+            .await;
+
+        http_mock.assert_async().await;
+        let result = result.unwrap();
+
+        assert_eq!(result.key, "example_key");
+        assert_eq!(result.value, json!({"hello": "world"}));
+    }
+
+    #[tokio::test]
+    async fn test_xcom_get_404() {
+        let server = MockServer::start_async().await;
+        let mut client = client(&server.base_url());
+
+        let http_mock = server
+            .mock_async(|when, then| {
+                when.method("GET")
+                    .path("/xcoms/example_dag/example_run/example_task/example_key")
+                    .header("authorization", "Bearer secret123");
+                then.status(404).body("Not Found");
+            })
+            .await;
+
+        let result = client
+            .xcoms_get(
+                "example_dag",
+                "example_run",
+                "example_task",
+                "example_key",
+                None,
+                None,
+            )
+            .await;
+
+        http_mock.assert_async().await;
+        let result = result.unwrap();
+
+        assert_eq!(result.key, "example_key");
+        assert_eq!(result.value, json!(null));
+    }
+
+    #[tokio::test]
+    async fn test_xcom_set() {
+        let server = MockServer::start_async().await;
+        let mut client = client(&server.base_url());
+
+        let http_mock = server
+            .mock_async(|when, then| {
+                when.method("POST")
+                    .path("/xcoms/example_dag/example_run/example_task/example_key")
+                    .header("authorization", "Bearer secret123")
+                    .query_param("map_index", "-1")
+                    .body(r#"{"hello":"world"}"#);
+                then.status(200);
+            })
+            .await;
+
+        let result = client
+            .xcoms_set(
+                "example_dag",
+                "example_run",
+                "example_task",
+                "example_key",
+                &json!({"hello": "world"}),
+                Some(MapIndex::none()),
+                None,
+            )
+            .await;
+
+        http_mock.assert_async().await;
+        result.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_xcom_delete() {
+        let server = MockServer::start_async().await;
+        let mut client = client(&server.base_url());
+
+        let http_mock = server
+            .mock_async(|when, then| {
+                when.method("DELETE")
+                    .path("/xcoms/example_dag/example_run/example_task/example_key")
+                    .header("authorization", "Bearer secret123")
+                    .query_param("map_index", "-1");
+                then.status(200);
+            })
+            .await;
+
+        let result = client
+            .xcoms_delete(
+                "example_dag",
+                "example_run",
+                "example_task",
+                "example_key",
+                Some(MapIndex::none()),
+            )
+            .await;
+
+        http_mock.assert_async().await;
+        result.unwrap();
     }
 }

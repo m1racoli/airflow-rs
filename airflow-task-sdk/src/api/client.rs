@@ -1,13 +1,7 @@
-cfg_if::cfg_if! {
-    if #[cfg(feature = "std")] {
-        use std::error;
-    } else {
-        extern crate alloc;
-        use alloc::string::String;
-        use alloc::vec::Vec;
-        use core::error;
-    }
-}
+extern crate alloc;
+use alloc::string::String;
+use alloc::vec::Vec;
+use core::error;
 
 use airflow_common::{
     datetime::UtcDateTime,
@@ -27,6 +21,8 @@ pub enum ExecutionApiError<E: error::Error> {
     Conflict(String),
     #[error(transparent)]
     Client(#[from] E),
+    #[error("{0}")]
+    Other(String),
 }
 
 #[trait_variant::make(ExecutionApiClient: Send)]
@@ -158,4 +154,70 @@ pub trait LocalExecutionApiClient {
         &mut self,
         id: &UniqueTaskInstanceId,
     ) -> Result<InactiveAssetsResponse, ExecutionApiError<Self::Error>>;
+
+    /// Get the number of mapped XCom values.
+    async fn xcoms_head(
+        &mut self,
+        dag_id: &str,
+        run_id: &str,
+        task_id: &str,
+        key: &str,
+    ) -> Result<usize, ExecutionApiError<Self::Error>>;
+
+    /// Get an XCom value from the API server.
+    async fn xcoms_get(
+        &mut self,
+        dag_id: &str,
+        run_id: &str,
+        task_id: &str,
+        key: &str,
+        map_index: Option<MapIndex>,
+        include_prior_dates: Option<bool>,
+    ) -> Result<XComResponse, ExecutionApiError<Self::Error>>;
+
+    /// Set an XCom value via the API server.
+    #[allow(clippy::too_many_arguments)]
+    async fn xcoms_set(
+        &mut self,
+        dag_id: &str,
+        run_id: &str,
+        task_id: &str,
+        key: &str,
+        value: &JsonValue,
+        map_index: Option<MapIndex>,
+        mapped_length: Option<usize>,
+    ) -> Result<(), ExecutionApiError<Self::Error>>;
+
+    /// Delete an XCom with given key via the API server.
+    async fn xcoms_delete(
+        &mut self,
+        dag_id: &str,
+        run_id: &str,
+        task_id: &str,
+        key: &str,
+        map_index: Option<MapIndex>,
+    ) -> Result<(), ExecutionApiError<Self::Error>>;
+
+    // TODO
+    // async fn xcoms_get_sequence_item(
+    //     &mut self,
+    //     dag_id: &str,
+    //     run_id: &str,
+    //     task_id: &str,
+    //     key: &str,
+    //     offset: usize,
+    // ) -> Result<XComSequenceIndexResponse, ExecutionApiError<Self::Error>>;
+
+    // TODO
+    // async fn xcoms_get_sequence_slice(
+    //     &mut self,
+    //     dag_id: &str,
+    //     run_id: &str,
+    //     task_id: &str,
+    //     key: &str,
+    //     start: Option<usize>,
+    //     stop: Option<usize>,
+    //     step: Option<usize>,
+    //     include_prior_dates: Option<bool>,
+    // ) -> Result<XComSequenceSliceResponse, ExecutionApiError<Self::Error>>;
 }
