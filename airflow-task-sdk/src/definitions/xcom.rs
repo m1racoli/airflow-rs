@@ -8,13 +8,13 @@ cfg_if::cfg_if! {
 
 use crate::definitions::{JsonDeserialize, JsonSerialize};
 
-pub trait XCom: JsonSerialize + JsonDeserialize + Send {}
+pub trait XComValue: JsonSerialize + JsonDeserialize + Send {}
 
-impl<T> XCom for T where T: JsonSerialize + JsonDeserialize + Send {}
+impl<T> XComValue for T where T: JsonSerialize + JsonDeserialize + Send {}
 
-impl<T> From<T> for Box<dyn XCom>
+impl<T> From<T> for Box<dyn XComValue>
 where
-    T: XCom + 'static,
+    T: XComValue + 'static,
 {
     fn from(value: T) -> Self {
         Box::new(value)

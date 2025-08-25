@@ -11,7 +11,7 @@ use log::debug;
 
 use crate::{
     api::datamodels::{JsonValue, TIRunContext, TISuccessStatePayload},
-    definitions::{Context, DagBag, JsonSerdeError, TaskError, XCom},
+    definitions::{Context, DagBag, JsonSerdeError, TaskError, XComValue},
     execution::{
         ExecutionResultTIState, LocalSupervisorComms, RuntimeTaskInstance, SupervisorCommsError,
         comms::SupervisorClient,
@@ -132,7 +132,7 @@ impl<C: LocalSupervisorComms, T: TimeProvider> TaskRunner<C, T> {
 
     async fn push_xcom_if_needed(
         &self,
-        result: Box<dyn XCom>,
+        result: Box<dyn XComValue>,
         ti: &RuntimeTaskInstance<'_>,
     ) -> Result<(), ExecutionError> {
         if !ti.task.do_xcom_push() {
@@ -196,7 +196,7 @@ async fn xcom_push<C: LocalSupervisorComms>(
     client: &SupervisorClient<C>,
     ti: &RuntimeTaskInstance<'_>,
     key: &str,
-    value: Box<dyn XCom>,
+    value: Box<dyn XComValue>,
     mapped_length: Option<usize>,
 ) -> Result<(), ExecutionError> {
     // TODO XCom class to handle serialization and custom backends

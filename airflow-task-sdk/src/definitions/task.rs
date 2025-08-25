@@ -7,7 +7,7 @@ use core::fmt::Pointer;
 use core::future::Future;
 use core::pin::Pin;
 
-use crate::definitions::{Context, Operator, xcom::XCom};
+use crate::definitions::{Context, Operator, xcom::XComValue};
 
 /// An error type which represents different errors that can occur during task execution.
 #[derive(thiserror::Error, Debug)]
@@ -52,7 +52,7 @@ impl Task {
     }
 }
 
-type BoxedTaskResult = Result<Box<(dyn XCom)>, TaskError>;
+type BoxedTaskResult = Result<Box<(dyn XComValue)>, TaskError>;
 
 impl fmt::Debug for Box<dyn DynOperator> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

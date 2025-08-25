@@ -15,4 +15,4 @@ pub use serde::JsonSerdeError;
 pub use serde::JsonSerialize;
 pub use task::Task;
 pub use task::TaskError;
-pub use xcom::XCom;
+pub use xcom::XComValue;
