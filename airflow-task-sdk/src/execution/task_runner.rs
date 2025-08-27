@@ -13,9 +13,11 @@ use log::debug;
 
 use crate::{
     api::datamodels::{TIRunContext, TISuccessStatePayload},
-    definitions::serde::{JsonSerdeError, JsonValue},
-    definitions::xcom::XComValue,
-    definitions::{Context, DagBag, TaskError},
+    definitions::{
+        Context, DagBag, TaskError,
+        serde::JsonSerialize,
+        xcom::{BaseXcom, XCOM_RETURN_KEY, XCom, XComBackend, XComError, XComValue},
+    },
     execution::{
         ExecutionResultTIState, LocalSupervisorComms, RuntimeTaskInstance, SupervisorCommsError,
         comms::SupervisorClient,
@@ -43,7 +45,7 @@ pub enum ExecutionError {
     #[error("Task runner has panicked")]
     Panicked,
     #[error("XCom error occurred: {0}")]
-    XCom(#[from] JsonSerdeError),
+    XCom(#[from] XComError<BaseXcom>),
     #[error(transparent)]
     Serde(#[from] serde_json::Error),
 }
@@ -68,18 +70,17 @@ impl<C: LocalSupervisorComms, T: TimeProvider> TaskRunner<C, T> {
         context: &Context,
     ) -> Result<(ExecutionResultTIState, Option<TaskError>), ExecutionError> {
         // clear the xcom data sent from server
-        for x in ti.ti_context_from_server.xcom_keys_to_clear.iter() {
-            debug!("Clearing XCom key: {}", x);
-            // TODO call XCom backend which also handles purging
-            self.client
-                .delete_xcom(
-                    x.to_string(),
-                    ti.dag_id.to_string(),
-                    ti.run_id.to_string(),
-                    ti.task_id.to_string(),
-                    Some(ti.map_index),
-                )
-                .await?;
+        for key in ti.ti_context_from_server.xcom_keys_to_clear.iter() {
+            debug!("Clearing XCom key: {}", key);
+            XCom::<BaseXcom>::delete(
+                &self.client,
+                &ti.dag_id,
+                &ti.run_id,
+                &ti.task_id,
+                ti.map_index,
+                key,
+            )
+            .await?;
         }
 
         // TODO call on_execute_callback
@@ -144,7 +145,7 @@ impl<C: LocalSupervisorComms, T: TimeProvider> TaskRunner<C, T> {
         // TODO handle if task is not mapped, but has mapped dependants
         // TODO handle multiple outputs
 
-        xcom_push(&self.client, ti, "return_value", result, None).await?;
+        xcom_push(ti, XCOM_RETURN_KEY, &result, None).await?;
         Ok(())
     }
 
@@ -193,23 +194,41 @@ impl<C: LocalSupervisorComms, T: TimeProvider> TaskRunner<C, T> {
     }
 }
 
-async fn xcom_push<C: LocalSupervisorComms>(
-    client: &SupervisorClient<C>,
+async fn xcom_push<T: JsonSerialize + Sync, C: LocalSupervisorComms>(
     ti: &RuntimeTaskInstance<'_, C>,
     key: &str,
-    value: Box<dyn XComValue>,
+    value: &T,
     mapped_length: Option<usize>,
-) -> Result<(), ExecutionError> {
-    // TODO XCom class to handle serialization and custom backends
-    let serialized = value.as_ref().serialize()?;
-    let value: JsonValue = serde_json::from_str(&serialized)?;
-    client
+) -> Result<(), XComError<BaseXcom>> {
+    // We can't use XCom::set here due to some weird issue with higher ranked type bonds
+    // probably related to the use of Box<dyn XComValue>. In fact the actual error occurs in
+    // `tokio::spawn` looking like this:
+    //
+    //   implementation of `X` is not general enough
+    //   = note: `X<'0>` would have to be implemented for the type `&str`, for any lifetime `'0`...
+    //   = note: ...but `X<'1>` is actually implemented for the type `&'1 str`, for some specific lifetime `'1`
+    //
+    // There's a lot to read on the topic, but no clear solution:
+    // - https://lucumr.pocoo.org/2022/9/11/abstracting-over-ownership/
+
+    let value = BaseXcom::serialize_value(
+        &ti.dag_id,
+        &ti.task_id,
+        &ti.run_id,
+        ti.map_index,
+        key,
+        value,
+    )
+    .await
+    .map_err(XComError::Backend)?;
+
+    ti.client
         .set_xcom(
             key.to_string(),
             value,
-            ti.dag_id.to_string(),
-            ti.run_id.to_string(),
-            ti.task_id.to_string(),
+            ti.dag_id.clone(),
+            ti.run_id.clone(),
+            ti.task_id.clone(),
             Some(ti.map_index),
             mapped_length,
         )

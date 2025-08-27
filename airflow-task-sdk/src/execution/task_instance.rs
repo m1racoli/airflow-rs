@@ -30,7 +30,6 @@ pub struct RuntimeTaskInstance<'t, C: LocalSupervisorComms> {
     pub start_date: UtcDateTime,
     pub state: TaskInstanceState,
     pub(super) ti_context_from_server: TIRunContext,
-    #[allow(dead_code)]
     pub(super) client: &'t SupervisorClient<C>,
 }
 
