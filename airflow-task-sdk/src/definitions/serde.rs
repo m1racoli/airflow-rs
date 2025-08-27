@@ -1,10 +1,7 @@
-cfg_if::cfg_if! {
-    if #[cfg(feature = "std")] {
-    } else {
-        extern crate alloc;
-        use alloc::string::String;
-    }
-}
+extern crate alloc;
+use alloc::string::String;
+
+pub type JsonValue = serde_json::Value;
 
 #[derive(Debug, thiserror::Error)]
 #[error(transparent)]
@@ -36,4 +33,18 @@ where
     fn deserialize(s: &str) -> Result<Self, JsonSerdeError> {
         serde_json::from_str(s).map_err(JsonSerdeError)
     }
+}
+
+/// Serialize an object into a representation consisting only of valid JSON types.
+pub fn serialize<T: JsonSerialize>(value: &T) -> Result<JsonValue, JsonSerdeError> {
+    let serialized = value.serialize()?;
+    let value = serde_json::from_str(&serialized)?;
+    Ok(value)
+}
+
+/// Deserialize an object from a representation consisting only of valid JSON types.
+pub fn deserialize<T: JsonDeserialize>(value: &JsonValue) -> Result<T, JsonSerdeError> {
+    let s = serde_json::to_string(value)?;
+    let deserialized = T::deserialize(&s)?;
+    Ok(deserialized)
 }

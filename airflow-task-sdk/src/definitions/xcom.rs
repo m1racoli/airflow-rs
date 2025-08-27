@@ -6,7 +6,7 @@ cfg_if::cfg_if! {
     }
 }
 
-use crate::definitions::{JsonDeserialize, JsonSerialize};
+use crate::definitions::serde::{JsonDeserialize, JsonSerialize};
 
 pub trait XComValue: JsonSerialize + JsonDeserialize + Send {}
 

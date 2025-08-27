@@ -6,6 +6,7 @@ use core::error;
 use airflow_common::utils::MapIndex;
 
 use crate::api::{ExecutionApiError, datamodels::*};
+use crate::definitions::serde::JsonValue;
 
 /// Messages sent from the supervisor to the task.
 #[derive(Debug)]

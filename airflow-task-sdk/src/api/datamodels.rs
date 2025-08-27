@@ -9,6 +9,8 @@ use airflow_common::{
 };
 use serde::{Deserialize, Serialize};
 
+use crate::definitions::serde::JsonValue;
+
 /// Profile of an asset-like object.
 ///
 /// Asset will have name, uri defined, with type set to 'Asset'.
@@ -199,8 +201,6 @@ impl<'a> From<&'a TIHeartbeatInfo> for TIHeartbeatInfoBody<'a> {
         }
     }
 }
-
-pub type JsonValue = serde_json::Value;
 
 /// XCom schema for responses with fields that are needed for Runtime.
 #[derive(Debug, Clone, Deserialize)]

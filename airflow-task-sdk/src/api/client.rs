@@ -10,7 +10,7 @@ use airflow_common::{
 };
 use serde::Serialize;
 
-use crate::api::datamodels::*;
+use crate::{api::datamodels::*, definitions::serde::JsonValue};
 
 /// An error which can occur when interacting with the TaskInstance API.
 #[derive(thiserror::Error, Debug)]

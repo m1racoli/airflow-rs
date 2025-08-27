@@ -12,8 +12,9 @@ use airflow_common::{
 use log::debug;
 
 use crate::{
-    api::datamodels::{JsonValue, TIRunContext, TISuccessStatePayload},
-    definitions::{Context, DagBag, JsonSerdeError, TaskError, XComValue},
+    api::datamodels::{TIRunContext, TISuccessStatePayload},
+    definitions::serde::{JsonSerdeError, JsonValue},
+    definitions::{Context, DagBag, TaskError, XComValue},
     execution::{
         ExecutionResultTIState, LocalSupervisorComms, RuntimeTaskInstance, SupervisorCommsError,
         comms::SupervisorClient,
