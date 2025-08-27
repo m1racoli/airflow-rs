@@ -1,6 +1,6 @@
 use std::{sync::LazyLock, time::Duration};
 
-use airflow_task_sdk::definitions::{Context, Dag, DagBag, Operator, Task, TaskError};
+use airflow_task_sdk::definitions::{Context, Dag, DagBag, Operator, TaskError};
 use tokio::time::sleep;
 use tracing::{info, warn};
 
@@ -28,10 +28,9 @@ impl Operator for ExampleOperator {
 }
 
 static DAG_BAG: LazyLock<DagBag> = LazyLock::new(|| {
-    let operator = ExampleOperator::default();
-    let task = Task::new("run", operator).with_xcom_push(true);
+    let run = ExampleOperator::default().task("run");
     let mut dag = Dag::new("example_dag");
-    dag.add_task(task);
+    dag.add_task(run);
     let mut dag_bag = DagBag::default();
     dag_bag.add_dag(dag);
     dag_bag
