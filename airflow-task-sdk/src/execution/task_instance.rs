@@ -1,11 +1,6 @@
-cfg_if::cfg_if! {
-    if #[cfg(feature = "std")] {
-    } else {
-        extern crate alloc;
-        use alloc::string::String;
-        use alloc::string::ToString;
-    }
-}
+extern crate alloc;
+use alloc::string::String;
+use alloc::string::ToString;
 
 use airflow_common::{
     datetime::UtcDateTime,
@@ -36,28 +31,15 @@ pub struct RuntimeTaskInstance<'t, C: LocalSupervisorComms> {
     pub state: TaskInstanceState,
     pub(super) ti_context_from_server: TIRunContext,
     #[allow(dead_code)]
-    pub(super) comms: &'t SupervisorClient<C>,
+    pub(super) client: &'t SupervisorClient<C>,
 }
 
-impl<C: LocalSupervisorComms> RuntimeTaskInstance<'_, C> {
-    pub fn get_template_context(&self) -> Context {
-        Context {
-            dag_id: self.dag_id.clone(),
-            task_id: self.task_id.clone(),
-            run_id: self.run_id.clone(),
-            try_number: self.try_number,
-            map_index: self.map_index,
-        }
-    }
-}
-
-impl<'t, C: LocalSupervisorComms> TryFrom<(StartupDetails, &'t DagBag, &'t SupervisorClient<C>)>
-    for RuntimeTaskInstance<'t, C>
-{
-    type Error = ExecutionError;
-    fn try_from(
-        (details, dag_bag, comms): (StartupDetails, &'t DagBag, &'t SupervisorClient<C>),
-    ) -> Result<Self, Self::Error> {
+impl<'t, C: LocalSupervisorComms> RuntimeTaskInstance<'t, C> {
+    pub fn new(
+        details: StartupDetails,
+        dag_bag: &'t DagBag,
+        comms: &'t SupervisorClient<C>,
+    ) -> Result<Self, ExecutionError> {
         let dag_id = details.ti.dag_id();
         let task_id = details.ti.task_id();
 
@@ -86,7 +68,17 @@ impl<'t, C: LocalSupervisorComms> TryFrom<(StartupDetails, &'t DagBag, &'t Super
             max_tries,
             start_date: details.start_date,
             state: TaskInstanceState::Running,
-            comms,
+            client: comms,
         })
+    }
+
+    pub fn get_template_context(&self) -> Context {
+        Context {
+            dag_id: self.dag_id.clone(),
+            task_id: self.task_id.clone(),
+            run_id: self.run_id.clone(),
+            try_number: self.try_number,
+            map_index: self.map_index,
+        }
     }
 }

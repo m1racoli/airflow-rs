@@ -153,7 +153,7 @@ impl<C: LocalSupervisorComms, T: TimeProvider> TaskRunner<C, T> {
         details: StartupDetails,
         dag_bag: &'t DagBag,
     ) -> Result<(RuntimeTaskInstance<'t, C>, Context), ExecutionError> {
-        let ti = RuntimeTaskInstance::try_from((details, dag_bag, &self.client))?;
+        let ti = RuntimeTaskInstance::new(details, dag_bag, &self.client)?;
         let context = ti.get_template_context();
         Ok((ti, context))
     }
