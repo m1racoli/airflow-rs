@@ -13,6 +13,7 @@ use airflow_common::{
     models::TaskInstanceLike,
     utils::{MapIndex, TaskInstanceState},
 };
+use log::error;
 
 use crate::{
     api::datamodels::TIRunContext,
@@ -54,13 +55,14 @@ impl<'d> TryFrom<(StartupDetails, &'d DagBag)> for RuntimeTaskInstance<'d> {
         let dag_id = details.ti.dag_id();
         let task_id = details.ti.task_id();
 
-        // TODO log errors if not found
-        let dag = dag_bag
-            .get_dag(dag_id)
-            .ok_or_else(|| ExecutionError::DagNotFound(dag_id.to_string()))?;
-        let task = dag
-            .get_task(task_id)
-            .ok_or_else(|| ExecutionError::TaskNotFound(dag_id.to_string(), task_id.to_string()))?;
+        let dag = dag_bag.get_dag(dag_id).ok_or_else(|| {
+            error!("DAG not found: {}", dag_id);
+            ExecutionError::DagNotFound(dag_id.to_string())
+        })?;
+        let task = dag.get_task(task_id).ok_or_else(|| {
+            error!("Task not found in DAG {}: {}", dag_id, task_id);
+            ExecutionError::TaskNotFound(dag_id.to_string(), task_id.to_string())
+        })?;
 
         let max_tries = details.ti_context.max_tries;
         let ti_context_from_server = details.ti_context;
