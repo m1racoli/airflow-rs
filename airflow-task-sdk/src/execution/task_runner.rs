@@ -14,7 +14,8 @@ use log::debug;
 use crate::{
     api::datamodels::{TIRunContext, TISuccessStatePayload},
     definitions::serde::{JsonSerdeError, JsonValue},
-    definitions::{Context, DagBag, TaskError, XComValue},
+    definitions::xcom::XComValue,
+    definitions::{Context, DagBag, TaskError},
     execution::{
         ExecutionResultTIState, LocalSupervisorComms, RuntimeTaskInstance, SupervisorCommsError,
         comms::SupervisorClient,

@@ -3,7 +3,7 @@ use core::fmt;
 use crate::definitions::Context;
 use crate::definitions::Task;
 use crate::definitions::TaskError;
-use crate::definitions::XComValue;
+use crate::definitions::xcom::XComValue;
 
 #[trait_variant::make(Send + Sync)]
 pub trait Operator: Clone + fmt::Debug + 'static {
