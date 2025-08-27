@@ -18,12 +18,12 @@ use log::error;
 use crate::{
     api::datamodels::TIRunContext,
     definitions::{Context, DagBag, Task},
-    execution::{ExecutionError, StartupDetails},
+    execution::{ExecutionError, LocalSupervisorComms, StartupDetails, SupervisorClient},
 };
 
 #[derive(Debug)]
-pub struct RuntimeTaskInstance<'d> {
-    pub task: &'d Task,
+pub struct RuntimeTaskInstance<'t, C: LocalSupervisorComms> {
+    pub task: &'t Task,
     pub id: UniqueTaskInstanceId,
     pub task_id: String,
     pub dag_id: String,
@@ -34,10 +34,12 @@ pub struct RuntimeTaskInstance<'d> {
     pub max_tries: usize,
     pub start_date: UtcDateTime,
     pub state: TaskInstanceState,
-    pub ti_context_from_server: TIRunContext,
+    pub(super) ti_context_from_server: TIRunContext,
+    #[allow(dead_code)]
+    pub(super) comms: &'t SupervisorClient<C>,
 }
 
-impl RuntimeTaskInstance<'_> {
+impl<C: LocalSupervisorComms> RuntimeTaskInstance<'_, C> {
     pub fn get_template_context(&self) -> Context {
         Context {
             dag_id: self.dag_id.clone(),
@@ -49,9 +51,13 @@ impl RuntimeTaskInstance<'_> {
     }
 }
 
-impl<'d> TryFrom<(StartupDetails, &'d DagBag)> for RuntimeTaskInstance<'d> {
+impl<'t, C: LocalSupervisorComms> TryFrom<(StartupDetails, &'t DagBag, &'t SupervisorClient<C>)>
+    for RuntimeTaskInstance<'t, C>
+{
     type Error = ExecutionError;
-    fn try_from((details, dag_bag): (StartupDetails, &'d DagBag)) -> Result<Self, Self::Error> {
+    fn try_from(
+        (details, dag_bag, comms): (StartupDetails, &'t DagBag, &'t SupervisorClient<C>),
+    ) -> Result<Self, Self::Error> {
         let dag_id = details.ti.dag_id();
         let task_id = details.ti.task_id();
 
@@ -80,6 +86,7 @@ impl<'d> TryFrom<(StartupDetails, &'d DagBag)> for RuntimeTaskInstance<'d> {
             max_tries,
             start_date: details.start_date,
             state: TaskInstanceState::Running,
+            comms,
         })
     }
 }

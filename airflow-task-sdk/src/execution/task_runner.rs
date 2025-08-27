@@ -63,8 +63,8 @@ impl<C: LocalSupervisorComms, T: TimeProvider> TaskRunner<C, T> {
     }
 
     async fn run(
-        &mut self,
-        ti: &mut RuntimeTaskInstance<'_>,
+        &self,
+        ti: &mut RuntimeTaskInstance<'_, C>,
         context: &Context,
     ) -> Result<(ExecutionResultTIState, Option<TaskError>), ExecutionError> {
         // clear the xcom data sent from server
@@ -98,7 +98,7 @@ impl<C: LocalSupervisorComms, T: TimeProvider> TaskRunner<C, T> {
 
     async fn finalize(
         &self,
-        ti: &RuntimeTaskInstance<'_>,
+        ti: &RuntimeTaskInstance<'_, C>,
         state: ExecutionResultTIState,
         context: &Context,
         error: Option<TaskError>,
@@ -115,8 +115,8 @@ impl<C: LocalSupervisorComms, T: TimeProvider> TaskRunner<C, T> {
     }
 
     async fn handle_current_task_success(
-        &mut self,
-        _ti: &RuntimeTaskInstance<'_>,
+        &self,
+        _ti: &RuntimeTaskInstance<'_, C>,
         _context: &Context,
     ) -> Result<(), ExecutionError> {
         let end_date = self.time_provider.now();
@@ -128,16 +128,13 @@ impl<C: LocalSupervisorComms, T: TimeProvider> TaskRunner<C, T> {
             rendered_map_index: None,
         };
         self.client.succeed_task(msg).await?;
-        // self.client
-        // .task_instances_succeed(&ti.id, &when, &[], &[], None)
-        // .await?;
         Ok(())
     }
 
     async fn push_xcom_if_needed(
         &self,
         result: Box<dyn XComValue>,
-        ti: &RuntimeTaskInstance<'_>,
+        ti: &RuntimeTaskInstance<'_, C>,
     ) -> Result<(), ExecutionError> {
         if !ti.task.do_xcom_push() {
             return Ok(());
@@ -151,17 +148,17 @@ impl<C: LocalSupervisorComms, T: TimeProvider> TaskRunner<C, T> {
         Ok(())
     }
 
-    async fn startup<'d>(
-        &self,
+    async fn startup<'t>(
+        &'t self,
         details: StartupDetails,
-        dag_bag: &'d DagBag,
-    ) -> Result<(RuntimeTaskInstance<'d>, Context), ExecutionError> {
-        let ti = RuntimeTaskInstance::try_from((details, dag_bag))?;
+        dag_bag: &'t DagBag,
+    ) -> Result<(RuntimeTaskInstance<'t, C>, Context), ExecutionError> {
+        let ti = RuntimeTaskInstance::try_from((details, dag_bag, &self.client))?;
         let context = ti.get_template_context();
         Ok((ti, context))
     }
 
-    async fn _main(mut self, what: StartupDetails, dag_bag: &DagBag) -> Result<(), ExecutionError> {
+    async fn _main(self, what: StartupDetails, dag_bag: &DagBag) -> Result<(), ExecutionError> {
         let (mut ti, context) = self.startup(what, dag_bag).await?;
 
         let (state, error) = self.run(&mut ti, &context).await?;
@@ -198,7 +195,7 @@ impl<C: LocalSupervisorComms, T: TimeProvider> TaskRunner<C, T> {
 
 async fn xcom_push<C: LocalSupervisorComms>(
     client: &SupervisorClient<C>,
-    ti: &RuntimeTaskInstance<'_>,
+    ti: &RuntimeTaskInstance<'_, C>,
     key: &str,
     value: Box<dyn XComValue>,
     mapped_length: Option<usize>,
