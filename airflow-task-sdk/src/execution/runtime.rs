@@ -4,7 +4,10 @@ use airflow_common::datetime::TimeProvider;
 
 use crate::{
     definitions::DagBag,
-    execution::{ExecutionError, StartupDetails, SupervisorCommsError, ToSupervisor, ToTask},
+    execution::{
+        ExecutionError, LocalSupervisorComms, StartupDetails, SupervisorCommsError, ToSupervisor,
+        ToTask,
+    },
 };
 
 #[derive(Debug)]
@@ -37,6 +40,7 @@ pub trait LocalTaskRuntime {
     type TaskHandle: LocalTaskHandle;
     type Instant: Copy;
     type TimeProvider: TimeProvider;
+    type Comms: LocalSupervisorComms;
 
     fn now(&self) -> Self::Instant;
     fn elapsed(&self, start: Self::Instant) -> Duration;

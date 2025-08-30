@@ -20,8 +20,7 @@ use crate::{
         xcom::{BaseXcom, XCOM_RETURN_KEY, XCom, XComBackend, XComError, XComValue},
     },
     execution::{
-        ExecutionResultTIState, LocalSupervisorComms, RuntimeTaskInstance, SupervisorCommsError,
-        comms::SupervisorClient,
+        ExecutionResultTIState, RuntimeTaskInstance, SupervisorCommsError, comms::SupervisorClient,
     },
 };
 
@@ -52,13 +51,13 @@ pub enum ExecutionError {
 }
 
 #[derive(Debug)]
-pub struct TaskRunner<C: LocalSupervisorComms, R: LocalTaskRuntime> {
-    client: SupervisorClient<C>,
+pub struct TaskRunner<R: LocalTaskRuntime> {
+    client: SupervisorClient<R::Comms>,
     time_provider: R::TimeProvider,
 }
 
-impl<C: LocalSupervisorComms, R: LocalTaskRuntime> TaskRunner<C, R> {
-    pub fn new(comms: C, time_provider: R::TimeProvider) -> Self {
+impl<R: LocalTaskRuntime> TaskRunner<R> {
+    pub fn new(comms: R::Comms, time_provider: R::TimeProvider) -> Self {
         Self {
             client: comms.into(),
             time_provider,
@@ -67,7 +66,7 @@ impl<C: LocalSupervisorComms, R: LocalTaskRuntime> TaskRunner<C, R> {
 
     async fn run(
         &self,
-        ti: &mut RuntimeTaskInstance<'_, C>,
+        ti: &mut RuntimeTaskInstance<'_, R>,
         context: &Context,
     ) -> Result<(ExecutionResultTIState, Option<TaskError>), ExecutionError> {
         // clear the xcom data sent from server
@@ -100,7 +99,7 @@ impl<C: LocalSupervisorComms, R: LocalTaskRuntime> TaskRunner<C, R> {
 
     async fn finalize(
         &self,
-        ti: &RuntimeTaskInstance<'_, C>,
+        ti: &RuntimeTaskInstance<'_, R>,
         state: ExecutionResultTIState,
         context: &Context,
         error: Option<TaskError>,
@@ -118,7 +117,7 @@ impl<C: LocalSupervisorComms, R: LocalTaskRuntime> TaskRunner<C, R> {
 
     async fn handle_current_task_success(
         &self,
-        _ti: &RuntimeTaskInstance<'_, C>,
+        _ti: &RuntimeTaskInstance<'_, R>,
         _context: &Context,
     ) -> Result<(), ExecutionError> {
         let end_date = self.time_provider.now();
@@ -136,7 +135,7 @@ impl<C: LocalSupervisorComms, R: LocalTaskRuntime> TaskRunner<C, R> {
     async fn push_xcom_if_needed(
         &self,
         result: Box<dyn XComValue>,
-        ti: &RuntimeTaskInstance<'_, C>,
+        ti: &RuntimeTaskInstance<'_, R>,
     ) -> Result<(), ExecutionError> {
         if !ti.task.do_xcom_push() {
             return Ok(());
@@ -154,7 +153,7 @@ impl<C: LocalSupervisorComms, R: LocalTaskRuntime> TaskRunner<C, R> {
         &'t self,
         details: StartupDetails,
         dag_bag: &'t DagBag,
-    ) -> Result<(RuntimeTaskInstance<'t, C>, Context), ExecutionError> {
+    ) -> Result<(RuntimeTaskInstance<'t, R>, Context), ExecutionError> {
         let ti = RuntimeTaskInstance::new(details, dag_bag, &self.client)?;
         let context = ti.get_template_context();
         Ok((ti, context))
@@ -195,8 +194,8 @@ impl<C: LocalSupervisorComms, R: LocalTaskRuntime> TaskRunner<C, R> {
     }
 }
 
-async fn xcom_push<T: JsonSerialize + Sync, C: LocalSupervisorComms>(
-    ti: &RuntimeTaskInstance<'_, C>,
+async fn xcom_push<T: JsonSerialize + Sync, R: LocalTaskRuntime>(
+    ti: &RuntimeTaskInstance<'_, R>,
     key: &str,
     value: &T,
     mapped_length: Option<usize>,

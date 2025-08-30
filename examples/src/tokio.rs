@@ -238,6 +238,7 @@ impl TaskRuntime for TokioTaskRuntime {
     type TaskHandle = TokioTaskHandle;
     type Instant = std::time::Instant;
     type TimeProvider = StdTimeProvider;
+    type Comms = TokioSupervisorComms;
 
     fn hostname(&self) -> &str {
         &self.hostname
@@ -262,7 +263,7 @@ impl TaskRuntime for TokioTaskRuntime {
     fn start(&self, details: StartupDetails, dag_bag: &'static DagBag) -> Self::TaskHandle {
         let (send, recv) = mpsc::channel(1);
         let comms = TokioSupervisorComms(send);
-        let task_runner: TaskRunner<_, TokioTaskRuntime> = TaskRunner::new(comms, StdTimeProvider);
+        let task_runner: TaskRunner<TokioTaskRuntime> = TaskRunner::new(comms, StdTimeProvider);
         let handle = tokio::spawn(task_runner.main(details, dag_bag));
         TokioTaskHandle {
             handle,

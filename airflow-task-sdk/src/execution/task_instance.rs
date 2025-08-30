@@ -10,14 +10,15 @@ use airflow_common::{
 };
 use log::error;
 
+use crate::execution::LocalTaskRuntime;
 use crate::{
     api::datamodels::TIRunContext,
     definitions::{Context, DagBag, Task},
-    execution::{ExecutionError, LocalSupervisorComms, StartupDetails, SupervisorClient},
+    execution::{ExecutionError, StartupDetails, SupervisorClient},
 };
 
 #[derive(Debug)]
-pub struct RuntimeTaskInstance<'t, C: LocalSupervisorComms> {
+pub struct RuntimeTaskInstance<'t, R: LocalTaskRuntime> {
     pub task: &'t Task,
     pub id: UniqueTaskInstanceId,
     pub task_id: String,
@@ -30,14 +31,14 @@ pub struct RuntimeTaskInstance<'t, C: LocalSupervisorComms> {
     pub start_date: UtcDateTime,
     pub state: TaskInstanceState,
     pub(super) ti_context_from_server: TIRunContext,
-    pub(super) client: &'t SupervisorClient<C>,
+    pub(super) client: &'t SupervisorClient<R::Comms>,
 }
 
-impl<'t, C: LocalSupervisorComms> RuntimeTaskInstance<'t, C> {
+impl<'t, R: LocalTaskRuntime> RuntimeTaskInstance<'t, R> {
     pub fn new(
         details: StartupDetails,
         dag_bag: &'t DagBag,
-        comms: &'t SupervisorClient<C>,
+        comms: &'t SupervisorClient<R::Comms>,
     ) -> Result<Self, ExecutionError> {
         let dag_id = details.ti.dag_id();
         let task_id = details.ti.task_id();
