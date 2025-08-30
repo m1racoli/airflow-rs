@@ -69,10 +69,10 @@ impl<R: TaskRuntime> TaskRunner<R> {
             debug!("Clearing XCom key: {}", key);
             XCom::<BaseXcom>::delete(
                 &self.client,
-                &ti.dag_id,
-                &ti.run_id,
-                &ti.task_id,
-                ti.map_index,
+                ti.dag_id(),
+                ti.run_id(),
+                ti.task_id(),
+                ti.map_index(),
                 key,
             )
             .await?;
@@ -216,10 +216,10 @@ async fn xcom_push<T: JsonSerialize + Sync, R: TaskRuntime>(
     // - https://lucumr.pocoo.org/2022/9/11/abstracting-over-ownership/
 
     let value = BaseXcom::serialize_value(
-        &ti.dag_id,
-        &ti.task_id,
-        &ti.run_id,
-        ti.map_index,
+        ti.dag_id(),
+        ti.task_id(),
+        ti.run_id(),
+        ti.map_index(),
         key,
         value,
     )
@@ -230,10 +230,10 @@ async fn xcom_push<T: JsonSerialize + Sync, R: TaskRuntime>(
         .set_xcom(
             key.to_string(),
             value,
-            ti.dag_id.clone(),
-            ti.run_id.clone(),
-            ti.task_id.clone(),
-            Some(ti.map_index),
+            ti.dag_id().to_string(),
+            ti.run_id().to_string(),
+            ti.task_id().to_string(),
+            Some(ti.map_index()),
             mapped_length,
         )
         .await?;

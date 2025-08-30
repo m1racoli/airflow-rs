@@ -127,7 +127,7 @@ impl<X: XComBackend> XCom<X> {
         Ok(())
     }
 
-    pub(super) async fn get_xcom_db_ref<R: TaskRuntime>(
+    pub(crate) async fn get_xcom_db_ref<R: TaskRuntime>(
         client: &SupervisorClient<R>,
         dag_id: &str,
         run_id: &str,
