@@ -17,7 +17,6 @@ use crate::{
     execution::{ExecutionError, StartupDetails, SupervisorClient},
 };
 
-#[derive(Debug)]
 pub struct RuntimeTaskInstance<'t, R: LocalTaskRuntime> {
     pub task: &'t Task,
     pub id: UniqueTaskInstanceId,
@@ -31,14 +30,14 @@ pub struct RuntimeTaskInstance<'t, R: LocalTaskRuntime> {
     pub start_date: UtcDateTime,
     pub state: TaskInstanceState,
     pub(super) ti_context_from_server: TIRunContext,
-    pub(super) client: &'t SupervisorClient<R::Comms>,
+    pub(super) client: &'t SupervisorClient<R>,
 }
 
 impl<'t, R: LocalTaskRuntime> RuntimeTaskInstance<'t, R> {
     pub fn new(
         details: StartupDetails,
         dag_bag: &'t DagBag,
-        comms: &'t SupervisorClient<R::Comms>,
+        comms: &'t SupervisorClient<R>,
     ) -> Result<Self, ExecutionError> {
         let dag_id = details.ti.dag_id();
         let task_id = details.ti.task_id();

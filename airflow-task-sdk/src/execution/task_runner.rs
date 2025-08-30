@@ -50,16 +50,15 @@ pub enum ExecutionError {
     Serde(#[from] serde_json::Error),
 }
 
-#[derive(Debug)]
 pub struct TaskRunner<R: LocalTaskRuntime> {
-    client: SupervisorClient<R::Comms>,
+    client: SupervisorClient<R>,
     time_provider: R::TimeProvider,
 }
 
 impl<R: LocalTaskRuntime> TaskRunner<R> {
     pub fn new(comms: R::Comms, time_provider: R::TimeProvider) -> Self {
         Self {
-            client: comms.into(),
+            client: SupervisorClient::new(comms),
             time_provider,
         }
     }

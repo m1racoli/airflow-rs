@@ -6,12 +6,13 @@ use core::{error::Error, marker::PhantomData};
 
 use airflow_common::utils::MapIndex;
 
+use crate::execution::LocalTaskRuntime;
 use crate::{
     api::datamodels::XComResponse,
     definitions::serde::{
         JsonDeserialize, JsonSerdeError, JsonSerialize, JsonValue, deserialize, serialize,
     },
-    execution::{LocalSupervisorComms, SupervisorClient, SupervisorCommsError},
+    execution::{SupervisorClient, SupervisorCommsError},
 };
 
 pub static XCOM_RETURN_KEY: &str = "return_value";
@@ -97,8 +98,8 @@ pub struct XCom<X: XComBackend>(PhantomData<X>);
 
 impl<X: XComBackend> XCom<X> {
     #[allow(clippy::too_many_arguments)]
-    pub async fn set<T: JsonSerialize + Sync, C: LocalSupervisorComms>(
-        client: &SupervisorClient<C>,
+    pub async fn set<T: JsonSerialize + Sync, R: LocalTaskRuntime>(
+        client: &SupervisorClient<R>,
         dag_id: &str,
         run_id: &str,
         task_id: &str,
@@ -125,8 +126,8 @@ impl<X: XComBackend> XCom<X> {
         Ok(())
     }
 
-    pub(super) async fn get_xcom_db_ref<C: LocalSupervisorComms>(
-        client: &SupervisorClient<C>,
+    pub(super) async fn get_xcom_db_ref<R: LocalTaskRuntime>(
+        client: &SupervisorClient<R>,
         dag_id: &str,
         run_id: &str,
         task_id: &str,
@@ -146,8 +147,8 @@ impl<X: XComBackend> XCom<X> {
         Ok(response)
     }
 
-    pub async fn delete<C: LocalSupervisorComms>(
-        client: &SupervisorClient<C>,
+    pub async fn delete<R: LocalTaskRuntime>(
+        client: &SupervisorClient<R>,
         dag_id: &str,
         run_id: &str,
         task_id: &str,
