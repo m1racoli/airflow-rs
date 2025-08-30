@@ -3,7 +3,7 @@ use airflow_common::{
     executors::UniqueTaskInstanceId,
     utils::{MapIndex, SecretString, TaskInstanceState, TerminalTIStateNonSuccess},
 };
-use log::error;
+use log::{debug, error};
 use reqwest::{Method, Response, StatusCode, header::HeaderMap};
 use serde::Serialize;
 
@@ -195,9 +195,15 @@ impl ExecutionApiClient for ReqwestExecutionApiClient {
         let response = self.handle_response(response).await?;
 
         if let Some(token) = response.headers().get("Refreshed-API-Token") {
-            let token = token.to_str().unwrap();
-            self.token = token.into();
-            // TODO debug logging
+            match token.to_str() {
+                Ok(token) => {
+                    self.token = token.into();
+                    debug!("Updated API token from API server");
+                }
+                Err(_) => {
+                    error!("Failed to parse Refreshed-API-Token header");
+                }
+            }
         }
         Ok(())
     }
