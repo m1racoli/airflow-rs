@@ -1,5 +1,7 @@
 extern crate alloc;
 use alloc::boxed::Box;
+use alloc::string::String;
+use alloc::string::ToString;
 use core::{error::Error, marker::PhantomData};
 
 use airflow_common::utils::MapIndex;
