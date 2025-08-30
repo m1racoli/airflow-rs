@@ -113,7 +113,7 @@ impl<R: TaskRuntime> TaskRunner<R> {
 
     async fn handle_current_task_success(
         &self,
-        _ti: &RuntimeTaskInstance<'_, R>,
+        ti: &RuntimeTaskInstance<'_, R>,
         _context: &Context<'_, R>,
     ) -> Result<(), ExecutionError> {
         let end_date = self.time_provider.now();
@@ -123,7 +123,7 @@ impl<R: TaskRuntime> TaskRunner<R> {
             end_date,
             task_outlets: vec![],
             outlet_events: vec![],
-            rendered_map_index: None,
+            rendered_map_index: ti.rendered_map_index.clone(),
         };
         self.client.succeed_task(msg).await?;
         Ok(())

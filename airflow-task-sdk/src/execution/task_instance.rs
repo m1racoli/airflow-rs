@@ -29,6 +29,8 @@ pub struct RuntimeTaskInstance<'t, R: TaskRuntime> {
     pub max_tries: usize,
     pub start_date: UtcDateTime,
     pub state: TaskInstanceState,
+    pub is_mapped: bool,
+    pub rendered_map_index: Option<String>,
     pub(super) ti_context_from_server: TIRunContext,
     pub(super) client: &'t SupervisorClient<R>,
 }
@@ -68,6 +70,8 @@ impl<'t, R: TaskRuntime> RuntimeTaskInstance<'t, R> {
             start_date: details.start_date,
             state: TaskInstanceState::Running,
             client: comms,
+            is_mapped: false,
+            rendered_map_index: None,
         })
     }
 
