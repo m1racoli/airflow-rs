@@ -11,15 +11,13 @@ rust-version.workspace = true
 cfg-if = "1"
 chrono = { version = "0.4", default-features = false, features = ["serde", "alloc"] }
 serde = { version = "1", default-features = false, features = ["derive", "alloc"] }
+serde_json = { version = "1", default-features = false, features = ["alloc"] }
 thiserror = { version = "2", default-features = false }
 uuid = { version = "1", default-features = false, features = ["serde"] }
 
 # Optional dependencies
 jsonwebtoken = { version = "9", default-features = false, optional = true }
 jwt-compact = { version = "0.8", default-features = false, optional = true }
-
-[dev-dependencies]
-serde_json = { version = "1", default-features = false, features = ["alloc"] }
 
 [features]
 default = ["jsonwebtoken", "now", "std"]

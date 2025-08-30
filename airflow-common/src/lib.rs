@@ -7,4 +7,5 @@ pub mod api;
 pub mod datetime;
 pub mod executors;
 pub mod models;
+pub mod serialization;
 pub mod utils;

@@ -1,4 +1,5 @@
 extern crate alloc;
+use airflow_common::serialization::serde::JsonSerialize;
 use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::string::ToString;
@@ -16,7 +17,6 @@ use crate::{
     api::datamodels::{TIRunContext, TISuccessStatePayload},
     definitions::{
         Context, DagBag, TaskError,
-        serde::JsonSerialize,
         xcom::{BaseXcom, XCOM_RETURN_KEY, XCom, XComBackend, XComError, XComValue},
     },
     execution::{
@@ -46,8 +46,6 @@ pub enum ExecutionError {
     Panicked,
     #[error("XCom error occurred: {0}")]
     XCom(#[from] XComError<BaseXcom>),
-    #[error(transparent)]
-    Serde(#[from] serde_json::Error),
 }
 
 pub struct TaskRunner<R: TaskRuntime> {

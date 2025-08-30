@@ -3,10 +3,10 @@ use alloc::string::String;
 use alloc::string::ToString;
 use core::error;
 
+use airflow_common::serialization::serde::JsonValue;
 use airflow_common::utils::MapIndex;
 
 use crate::api::{ExecutionApiError, datamodels::*};
-use crate::definitions::serde::JsonValue;
 use crate::execution::TaskRuntime;
 
 /// Messages sent from the supervisor to the task.

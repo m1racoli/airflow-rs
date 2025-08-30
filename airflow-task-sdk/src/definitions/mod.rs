@@ -2,7 +2,6 @@ mod context;
 mod dag;
 mod dagbag;
 mod operator;
-pub mod serde;
 mod task;
 pub mod xcom;
 

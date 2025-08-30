@@ -6,11 +6,12 @@ use core::error;
 use airflow_common::{
     datetime::UtcDateTime,
     executors::UniqueTaskInstanceId,
+    serialization::serde::JsonValue,
     utils::{MapIndex, TaskInstanceState, TerminalTIStateNonSuccess},
 };
 use serde::Serialize;
 
-use crate::{api::datamodels::*, definitions::serde::JsonValue};
+use crate::api::datamodels::*;
 
 /// An error which can occur when interacting with the TaskInstance API.
 #[derive(thiserror::Error, Debug)]

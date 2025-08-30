@@ -1,16 +1,14 @@
 use airflow_common::{
     datetime::UtcDateTime,
     executors::UniqueTaskInstanceId,
+    serialization::serde::JsonValue,
     utils::{MapIndex, SecretString, TaskInstanceState, TerminalTIStateNonSuccess},
 };
 use log::{debug, error};
 use reqwest::{Method, Response, StatusCode, header::HeaderMap};
 use serde::Serialize;
 
-use crate::{
-    api::{ExecutionApiClient, ExecutionApiClientFactory, ExecutionApiError, datamodels::*},
-    definitions::serde::JsonValue,
-};
+use crate::api::{ExecutionApiClient, ExecutionApiClientFactory, ExecutionApiError, datamodels::*};
 
 #[derive(Debug, Clone, Default)]
 pub struct ReqwestExecutionApiClientFactory;

@@ -1,17 +1,18 @@
 extern crate alloc;
+use airflow_common::serialization::serde::JsonValue;
 use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::string::ToString;
 use core::{error::Error, marker::PhantomData};
 
+use airflow_common::serialization::serde::{
+    JsonDeserialize, JsonSerdeError, JsonSerialize, deserialize, serialize,
+};
 use airflow_common::utils::MapIndex;
 
 use crate::execution::TaskRuntime;
 use crate::{
     api::datamodels::XComResponse,
-    definitions::serde::{
-        JsonDeserialize, JsonSerdeError, JsonSerialize, JsonValue, deserialize, serialize,
-    },
     execution::{SupervisorClient, SupervisorCommsError},
 };
 

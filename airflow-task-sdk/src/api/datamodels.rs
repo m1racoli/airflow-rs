@@ -5,11 +5,10 @@ use alloc::vec::Vec;
 
 use airflow_common::{
     datetime::UtcDateTime,
+    serialization::serde::JsonValue,
     utils::{DagRunType, TaskInstanceState, TerminalTIStateNonSuccess},
 };
 use serde::{Deserialize, Serialize};
-
-use crate::definitions::serde::JsonValue;
 
 /// Profile of an asset-like object.
 ///
