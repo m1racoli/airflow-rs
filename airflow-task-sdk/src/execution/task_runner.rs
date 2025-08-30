@@ -65,8 +65,8 @@ impl<R: LocalTaskRuntime> TaskRunner<R> {
 
     async fn run(
         &self,
-        ti: &mut RuntimeTaskInstance<'_, R>,
-        context: &Context,
+        ti: &RuntimeTaskInstance<'_, R>,
+        context: &Context<'_, R>,
     ) -> Result<(ExecutionResultTIState, Option<TaskError>), ExecutionError> {
         // clear the xcom data sent from server
         for key in ti.ti_context_from_server.xcom_keys_to_clear.iter() {
@@ -92,7 +92,8 @@ impl<R: LocalTaskRuntime> TaskRunner<R> {
             }
             Err(error) => (ExecutionResultTIState::Failed, Some(error)),
         };
-        ti.state = state.into();
+        // TODO can we mutate ti somehow while context exists?
+        // ti.state = state.into();
         Ok((state, error))
     }
 
@@ -100,7 +101,7 @@ impl<R: LocalTaskRuntime> TaskRunner<R> {
         &self,
         ti: &RuntimeTaskInstance<'_, R>,
         state: ExecutionResultTIState,
-        context: &Context,
+        context: &Context<'_, R>,
         error: Option<TaskError>,
     ) {
         let _it = ti;
@@ -117,9 +118,10 @@ impl<R: LocalTaskRuntime> TaskRunner<R> {
     async fn handle_current_task_success(
         &self,
         _ti: &RuntimeTaskInstance<'_, R>,
-        _context: &Context,
+        _context: &Context<'_, R>,
     ) -> Result<(), ExecutionError> {
         let end_date = self.time_provider.now();
+        // TODO set TI end_date
         let msg = TISuccessStatePayload {
             state: TaskInstanceState::Success,
             end_date,
@@ -151,17 +153,16 @@ impl<R: LocalTaskRuntime> TaskRunner<R> {
     async fn startup<'t>(
         &'t self,
         details: StartupDetails,
-        dag_bag: &'t DagBag,
-    ) -> Result<(RuntimeTaskInstance<'t, R>, Context), ExecutionError> {
+        dag_bag: &'t DagBag<R>,
+    ) -> Result<RuntimeTaskInstance<'t, R>, ExecutionError> {
         let ti = RuntimeTaskInstance::new(details, dag_bag, &self.client)?;
-        let context = ti.get_template_context();
-        Ok((ti, context))
+        Ok(ti)
     }
 
-    async fn _main(self, what: StartupDetails, dag_bag: &DagBag) -> Result<(), ExecutionError> {
-        let (mut ti, context) = self.startup(what, dag_bag).await?;
-
-        let (state, error) = self.run(&mut ti, &context).await?;
+    async fn _main(self, what: StartupDetails, dag_bag: &DagBag<R>) -> Result<(), ExecutionError> {
+        let ti = self.startup(what, dag_bag).await?;
+        let context = ti.get_template_context();
+        let (state, error) = self.run(&ti, &context).await?;
         self.finalize(&ti, state, &context, error).await;
         // TODO communicate task result properly
         Ok(())
@@ -169,7 +170,11 @@ impl<R: LocalTaskRuntime> TaskRunner<R> {
 
     #[cfg(not(feature = "tracing"))]
     /// Perform the actual task execution with the given startup details
-    pub async fn main(self, what: StartupDetails, dag_bag: &DagBag) -> Result<(), ExecutionError> {
+    pub async fn main(
+        self,
+        what: StartupDetails,
+        dag_bag: &DagBag<R>,
+    ) -> Result<(), ExecutionError> {
         self._main(what, dag_bag).await
     }
 
@@ -178,7 +183,11 @@ impl<R: LocalTaskRuntime> TaskRunner<R> {
     ///
     /// The task execution is instrumented with a special tracing span
     /// which allows us to filter task logs.
-    pub async fn main(self, what: StartupDetails, dag_bag: &DagBag) -> Result<(), ExecutionError> {
+    pub async fn main(
+        self,
+        what: StartupDetails,
+        dag_bag: &DagBag<R>,
+    ) -> Result<(), ExecutionError> {
         use airflow_common::models::TaskInstanceLike;
         use tracing::{Instrument, info_span};
 

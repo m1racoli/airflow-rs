@@ -98,11 +98,16 @@ pub struct EdgeWorker<C: LocalEdgeApiClient, T: TimeProvider, R: LocalWorkerRunt
     time_provider: T,
     runtime: R,
     state: WorkerState,
-    dag_bag: &'static DagBag,
+    dag_bag: &'static DagBag<R::TaskRuntime>,
 }
 
 impl<C: LocalEdgeApiClient, T: TimeProvider, R: LocalWorkerRuntime> EdgeWorker<C, T, R> {
-    pub fn new(client: C, time_provider: T, runtime: R, dag_bag: &'static DagBag) -> Self {
+    pub fn new(
+        client: C,
+        time_provider: T,
+        runtime: R,
+        dag_bag: &'static DagBag<R::TaskRuntime>,
+    ) -> Self {
         let state = WorkerState {
             used_concurrency: 0,
             concurrency: runtime.concurrency(),

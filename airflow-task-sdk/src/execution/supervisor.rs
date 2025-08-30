@@ -27,7 +27,7 @@ static MAX_FAILED_HEARTBEATS: usize = 3;
 pub async fn supervise<F, R>(
     task: ExecuteTask,
     client_factory: F,
-    dag_bag: &'static DagBag,
+    dag_bag: &'static DagBag<R>,
     runtime: &R,
     server: &str,
 ) -> bool
@@ -109,7 +109,7 @@ where
     async fn start(
         what: &'a TaskInstance,
         mut client: C,
-        dag_bag: &'static DagBag,
+        dag_bag: &'static DagBag<R>,
         runtime: &'a R,
     ) -> Result<Self, ExecutionApiError<C::Error>> {
         let id = what.id();

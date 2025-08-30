@@ -36,7 +36,7 @@ pub trait LocalTaskHandle {
 }
 
 #[trait_variant::make(TaskRuntime: Send)]
-pub trait LocalTaskRuntime {
+pub trait LocalTaskRuntime: Sized + 'static {
     type TaskHandle: LocalTaskHandle;
     type Instant: Copy;
     type TimeProvider: TimeProvider;
@@ -49,5 +49,5 @@ pub trait LocalTaskRuntime {
     fn pid(&self) -> u32;
     fn time_provider(&self) -> &Self::TimeProvider;
 
-    fn start(&self, details: StartupDetails, dag_bag: &'static DagBag) -> Self::TaskHandle;
+    fn start(&self, details: StartupDetails, dag_bag: &'static DagBag<Self>) -> Self::TaskHandle;
 }

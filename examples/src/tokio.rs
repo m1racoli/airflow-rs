@@ -111,6 +111,7 @@ where
 {
     type Job = TokioEdgeJob;
     type Intercom = TokioIntercom;
+    type TaskRuntime = TokioTaskRuntime;
 
     async fn sleep(&mut self, duration: Duration) -> Option<IntercomMessage> {
         debug!("Sleeping for {} seconds", duration.as_secs());
@@ -124,7 +125,11 @@ where
         TokioIntercom(self.send.clone())
     }
 
-    fn launch(&self, job: EdgeJobFetched, dag_bag: &'static DagBag) -> Self::Job {
+    fn launch(
+        &self,
+        job: EdgeJobFetched,
+        dag_bag: &'static DagBag<Self::TaskRuntime>,
+    ) -> Self::Job {
         let ti_key = job.ti_key();
         let intercom = self.intercom();
         let client_factory = self.client_factory.clone();
@@ -260,7 +265,7 @@ impl TaskRuntime for TokioTaskRuntime {
         start.elapsed()
     }
 
-    fn start(&self, details: StartupDetails, dag_bag: &'static DagBag) -> Self::TaskHandle {
+    fn start(&self, details: StartupDetails, dag_bag: &'static DagBag<Self>) -> Self::TaskHandle {
         let (send, recv) = mpsc::channel(1);
         let comms = TokioSupervisorComms(send);
         let task_runner: TaskRunner<TokioTaskRuntime> = TaskRunner::new(comms, StdTimeProvider);

@@ -1,14 +1,13 @@
-use core::fmt;
-
 use crate::definitions::Context;
 use crate::definitions::Task;
 use crate::definitions::TaskError;
 use crate::definitions::xcom::XComValue;
+use crate::execution::LocalTaskRuntime;
 
 #[trait_variant::make(Send + Sync)]
-pub trait Operator: Clone + fmt::Debug + 'static {
+pub trait Operator<R: LocalTaskRuntime>: Clone + 'static {
     type Item: XComValue + 'static;
-    async fn execute<'t>(&'t mut self, ctx: &'t Context) -> Result<Self::Item, TaskError>;
+    async fn execute<'t>(&'t mut self, ctx: &'t Context<'t, R>) -> Result<Self::Item, TaskError>;
 
     /// Create a task from this operator with the given task ID.
     /// The task ID must be unique within the DAG.
@@ -18,7 +17,7 @@ pub trait Operator: Clone + fmt::Debug + 'static {
     /// ```
     /// use airflow_task_sdk::definitions::{Dag, DagBag, Operator};
     ///
-    /// #[derive(Debug, Clone, Default)]
+    /// #[derive(Clone, Default)]
     /// struct MyOperator;
     ///
     /// impl Operator for MyOperator {
@@ -36,7 +35,7 @@ pub trait Operator: Clone + fmt::Debug + 'static {
     /// let mut dag_bag = DagBag::default();
     /// dag_bag.add_dag(dag);
     /// ```
-    fn into_task(self, task_id: &str) -> Task {
+    fn into_task(self, task_id: &str) -> Task<R> {
         Task::new(task_id, self)
     }
 }

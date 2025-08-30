@@ -1,18 +1,23 @@
 use std::{sync::LazyLock, time::Duration};
 
-use airflow_task_sdk::definitions::{Context, Dag, DagBag, Operator, TaskError};
+use airflow_task_sdk::{
+    definitions::{Context, Dag, DagBag, Operator, TaskError},
+    execution::LocalTaskRuntime,
+};
 use tokio::time::sleep;
 use tracing::{info, warn};
+
+use crate::tokio::TokioTaskRuntime;
 
 #[derive(Debug, Clone, Default)]
 pub struct ExampleOperator {
     cnt: i32,
 }
 
-impl Operator for ExampleOperator {
+impl<R: LocalTaskRuntime> Operator<R> for ExampleOperator {
     type Item = i32;
 
-    async fn execute<'t>(&'t mut self, ctx: &'t Context) -> Result<Self::Item, TaskError> {
+    async fn execute<'t>(&'t mut self, ctx: &'t Context<'t, R>) -> Result<Self::Item, TaskError> {
         info!(
             "I am task instance {} {} {} {} {}",
             ctx.dag_id, ctx.task_id, ctx.run_id, ctx.try_number, ctx.map_index
@@ -27,7 +32,7 @@ impl Operator for ExampleOperator {
     }
 }
 
-static DAG_BAG: LazyLock<DagBag> = LazyLock::new(|| {
+static DAG_BAG: LazyLock<DagBag<TokioTaskRuntime>> = LazyLock::new(|| {
     let run = ExampleOperator::default().into_task("run");
     let mut dag = Dag::new("example_dag");
     dag.add_task(run);
@@ -36,6 +41,6 @@ static DAG_BAG: LazyLock<DagBag> = LazyLock::new(|| {
     dag_bag
 });
 
-pub fn get_dag_bag() -> &'static DagBag {
+pub fn get_dag_bag() -> &'static DagBag<TokioTaskRuntime> {
     &DAG_BAG
 }

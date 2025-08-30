@@ -8,6 +8,7 @@ use core::future::Future;
 use core::pin::Pin;
 
 use crate::definitions::{Context, Operator, xcom::XComValue};
+use crate::execution::LocalTaskRuntime;
 
 /// An error type which represents different errors that can occur during task execution.
 #[derive(thiserror::Error, Debug)]
@@ -18,14 +19,14 @@ pub enum TaskError {
 }
 
 #[derive(Debug)]
-pub struct Task {
+pub struct Task<R: LocalTaskRuntime> {
     task_id: String,
-    operator: Box<dyn DynOperator>,
+    operator: Box<dyn DynOperator<R>>,
     do_xcom_push: bool,
 }
 
-impl Task {
-    pub fn new(task_id: &str, operator: impl Operator + 'static) -> Self {
+impl<R: LocalTaskRuntime> Task<R> {
+    pub fn new(task_id: &str, operator: impl Operator<R> + 'static) -> Self {
         Self {
             task_id: task_id.to_string(),
             operator: Box::new(operator),
@@ -46,7 +47,7 @@ impl Task {
         &self.task_id
     }
 
-    pub async fn execute<'t>(&'t self, ctx: &'t Context) -> BoxedTaskResult {
+    pub async fn execute<'t>(&'t self, ctx: &'t Context<'t, R>) -> BoxedTaskResult {
         let mut operator = self.operator.clone_box();
         operator.execute_box(ctx).await
     }
@@ -54,28 +55,28 @@ impl Task {
 
 type BoxedTaskResult = Result<Box<(dyn XComValue)>, TaskError>;
 
-impl fmt::Debug for Box<dyn DynOperator> {
+impl<R: LocalTaskRuntime> fmt::Debug for Box<dyn DynOperator<R>> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.as_ref().fmt(f)
     }
 }
 
-trait DynOperator: Send + Sync + 'static {
+trait DynOperator<R: LocalTaskRuntime>: Send + Sync + 'static {
     fn execute_box<'t>(
         &'t mut self,
-        ctx: &'t Context,
+        ctx: &'t Context<'t, R>,
     ) -> Pin<Box<dyn Future<Output = BoxedTaskResult> + Send + Sync + 't>>;
 
-    fn clone_box(&self) -> Box<dyn DynOperator + 'static>;
+    fn clone_box(&self) -> Box<dyn DynOperator<R> + 'static>;
 }
 
-impl<T> DynOperator for T
+impl<T, R: LocalTaskRuntime> DynOperator<R> for T
 where
-    T: Operator + 'static,
+    T: Operator<R> + 'static,
 {
     fn execute_box<'t>(
         &'t mut self,
-        ctx: &'t Context,
+        ctx: &'t Context<'t, R>,
     ) -> Pin<Box<dyn Future<Output = BoxedTaskResult> + Send + Sync + 't>> {
         Box::pin(async {
             match self.execute(ctx).await {
@@ -85,7 +86,7 @@ where
         })
     }
 
-    fn clone_box(&self) -> Box<dyn DynOperator + 'static> {
+    fn clone_box(&self) -> Box<dyn DynOperator<R> + 'static> {
         Box::new(self.clone())
     }
 }

@@ -18,7 +18,7 @@ use crate::{
 };
 
 pub struct RuntimeTaskInstance<'t, R: LocalTaskRuntime> {
-    pub task: &'t Task,
+    pub task: &'t Task<R>,
     pub id: UniqueTaskInstanceId,
     pub task_id: String,
     pub dag_id: String,
@@ -36,7 +36,7 @@ pub struct RuntimeTaskInstance<'t, R: LocalTaskRuntime> {
 impl<'t, R: LocalTaskRuntime> RuntimeTaskInstance<'t, R> {
     pub fn new(
         details: StartupDetails,
-        dag_bag: &'t DagBag,
+        dag_bag: &'t DagBag<R>,
         comms: &'t SupervisorClient<R>,
     ) -> Result<Self, ExecutionError> {
         let dag_id = details.ti.dag_id();
@@ -71,13 +71,15 @@ impl<'t, R: LocalTaskRuntime> RuntimeTaskInstance<'t, R> {
         })
     }
 
-    pub fn get_template_context(&self) -> Context {
+    pub fn get_template_context(&'t self) -> Context<'t, R> {
         Context {
             dag_id: self.dag_id.clone(),
-            task_id: self.task_id.clone(),
-            run_id: self.run_id.clone(),
-            try_number: self.try_number,
             map_index: self.map_index,
+            run_id: self.run_id.clone(),
+            task_id: self.task_id.clone(),
+            task_instance: self,
+            ti: self,
+            try_number: self.try_number,
         }
     }
 }
