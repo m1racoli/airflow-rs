@@ -1,7 +1,7 @@
 use std::{process, time::Duration};
 
 use airflow_common::{
-    datetime::{StdTimeProvider, TimeProvider},
+    datetime::StdTimeProvider,
     models::{TaskInstanceKey, TaskInstanceLike},
 };
 use airflow_edge_sdk::{
@@ -133,14 +133,11 @@ where
             let key = job.command.ti().ti_key();
             info!("{}: Worker task launched.", key);
 
-            // TODO should the time provider be passed from somewhere?
-            let time_provider = StdTimeProvider;
             let runtime = TokioTaskRuntime::default();
 
             supervise(
                 job.command,
                 client_factory,
-                time_provider,
                 dag_bag,
                 &runtime,
                 EXECUTION_API_SERVER_URL,
@@ -237,12 +234,10 @@ impl Default for TokioTaskRuntime {
     }
 }
 
-impl<T> TaskRuntime<T> for TokioTaskRuntime
-where
-    T: TimeProvider + Send + Sync + 'static,
-{
+impl TaskRuntime for TokioTaskRuntime {
     type TaskHandle = TokioTaskHandle;
     type Instant = std::time::Instant;
+    type TimeProvider = StdTimeProvider;
 
     fn hostname(&self) -> &str {
         &self.hostname
@@ -264,21 +259,20 @@ where
         start.elapsed()
     }
 
-    fn start(
-        &self,
-        time_provider: T,
-        details: StartupDetails,
-        dag_bag: &'static DagBag,
-    ) -> Self::TaskHandle {
+    fn start(&self, details: StartupDetails, dag_bag: &'static DagBag) -> Self::TaskHandle {
         let (send, recv) = mpsc::channel(1);
         let comms = TokioSupervisorComms(send);
-        let task_runner = TaskRunner::new(comms, time_provider);
+        let task_runner = TaskRunner::new(comms, StdTimeProvider);
         let handle = tokio::spawn(task_runner.main(details, dag_bag));
         TokioTaskHandle {
             handle,
             recv,
             send: None,
         }
+    }
+
+    fn time_provider(&self) -> &Self::TimeProvider {
+        &StdTimeProvider
     }
 }
 

@@ -24,18 +24,16 @@ static HEARTBEAT_TIMEOUT: u64 = 300; // seconds
 static MIN_HEARTBEAT_INTERVAL: u64 = 5; // seconds
 static MAX_FAILED_HEARTBEATS: usize = 3;
 
-pub async fn supervise<F, T, R>(
+pub async fn supervise<F, R>(
     task: ExecuteTask,
     client_factory: F,
-    time_provider: T,
     dag_bag: &'static DagBag,
     runtime: &R,
     server: &str,
 ) -> bool
 where
     F: LocalExecutionApiClientFactory + 'static,
-    T: TimeProvider + Clone + 'static,
-    R: LocalTaskRuntime<T>,
+    R: LocalTaskRuntime,
 {
     let ti = task.ti();
     debug!("Supervising task: {:?}", ti);
@@ -52,7 +50,7 @@ where
         }
     };
 
-    let active_task = match ActivityTask::start(ti, client, dag_bag, time_provider, runtime).await {
+    let active_task = match ActivityTask::start(ti, client, dag_bag, runtime).await {
         Ok(task) => task,
         Err(e) => {
             error!("Failed to start task: {}", e);
@@ -89,10 +87,9 @@ enum ActivityError<C: LocalExecutionApiClient> {
 }
 
 /// This is an equivalent of ActiveSubprocess in original Airflow, but async.
-struct ActivityTask<'a, C: LocalExecutionApiClient, T: TimeProvider, R: LocalTaskRuntime<T>> {
+struct ActivityTask<'a, C: LocalExecutionApiClient, R: LocalTaskRuntime> {
     ti: &'a TaskInstance,
     client: C,
-    time_provider: T,
     handle: R::TaskHandle,
     last_successful_heartbeat: R::Instant,
     last_heartbeat_attempt: R::Instant,
@@ -104,21 +101,19 @@ struct ActivityTask<'a, C: LocalExecutionApiClient, T: TimeProvider, R: LocalTas
     task_end_time: Option<R::Instant>,
 }
 
-impl<'a, C, T, R> ActivityTask<'a, C, T, R>
+impl<'a, C, R> ActivityTask<'a, C, R>
 where
     C: LocalExecutionApiClient + 'static,
-    T: TimeProvider + Clone + 'static,
-    R: LocalTaskRuntime<T>,
+    R: LocalTaskRuntime,
 {
     async fn start(
         what: &'a TaskInstance,
         mut client: C,
         dag_bag: &'static DagBag,
-        time_provider: T,
         runtime: &'a R,
     ) -> Result<Self, ExecutionApiError<C::Error>> {
         let id = what.id();
-        let start = time_provider.now();
+        let start = runtime.time_provider().now();
 
         let ti_context = client
             .task_instances_start(
@@ -137,12 +132,11 @@ where
             ti_context,
         };
 
-        let handle = runtime.start(time_provider.clone(), details, dag_bag);
+        let handle = runtime.start(details, dag_bag);
 
         Ok(Self {
             ti: what,
             client,
-            time_provider,
             handle,
             last_successful_heartbeat,
             last_heartbeat_attempt: last_successful_heartbeat,
@@ -208,7 +202,7 @@ where
                 self.client
                     .task_instances_succeed(
                         &self.ti.id(),
-                        &self.time_provider.now(),
+                        &self.runtime.time_provider().now(),
                         &payload.task_outlets,
                         &payload.outlet_events,
                         None,
@@ -375,7 +369,7 @@ where
 
     async fn update_task_state_if_needed(&mut self) -> Result<(), ExecutionApiError<C::Error>> {
         let id = self.ti.id();
-        let end = self.time_provider.now();
+        let end = self.runtime.time_provider().now();
 
         match self.final_state().into() {
             Some(state) => {
