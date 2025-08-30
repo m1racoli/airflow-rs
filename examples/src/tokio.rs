@@ -262,7 +262,7 @@ impl TaskRuntime for TokioTaskRuntime {
     fn start(&self, details: StartupDetails, dag_bag: &'static DagBag) -> Self::TaskHandle {
         let (send, recv) = mpsc::channel(1);
         let comms = TokioSupervisorComms(send);
-        let task_runner = TaskRunner::new(comms, StdTimeProvider);
+        let task_runner: TaskRunner<_, TokioTaskRuntime> = TaskRunner::new(comms, StdTimeProvider);
         let handle = tokio::spawn(task_runner.main(details, dag_bag));
         TokioTaskHandle {
             handle,

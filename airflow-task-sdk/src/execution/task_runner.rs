@@ -11,6 +11,7 @@ use airflow_common::{
 };
 use log::debug;
 
+use crate::execution::LocalTaskRuntime;
 use crate::{
     api::datamodels::{TIRunContext, TISuccessStatePayload},
     definitions::{
@@ -51,13 +52,13 @@ pub enum ExecutionError {
 }
 
 #[derive(Debug)]
-pub struct TaskRunner<C: LocalSupervisorComms, T: TimeProvider> {
+pub struct TaskRunner<C: LocalSupervisorComms, R: LocalTaskRuntime> {
     client: SupervisorClient<C>,
-    time_provider: T,
+    time_provider: R::TimeProvider,
 }
 
-impl<C: LocalSupervisorComms, T: TimeProvider> TaskRunner<C, T> {
-    pub fn new(comms: C, time_provider: T) -> Self {
+impl<C: LocalSupervisorComms, R: LocalTaskRuntime> TaskRunner<C, R> {
+    pub fn new(comms: C, time_provider: R::TimeProvider) -> Self {
         Self {
             client: comms.into(),
             time_provider,
