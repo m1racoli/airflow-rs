@@ -77,8 +77,8 @@ where
 }
 
 /// A trait for communicating with the supervisor.
-#[trait_variant::make(SupervisorComms: Send)]
-pub trait LocalSupervisorComms: Sync {
+#[trait_variant::make(Send + Sync)]
+pub trait SupervisorComms {
     async fn send(&self, msg: ToSupervisor) -> Result<ToTask, SupervisorCommsError>;
 }
 
