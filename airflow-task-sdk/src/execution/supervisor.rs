@@ -15,7 +15,7 @@ use crate::{
     execution::{
         ExecutionError, ExecutionResultTIState, StartupDetails, SupervisorCommsError, TaskRuntime,
         ToSupervisor, ToTask,
-        runtime::{LocalTaskHandle, ServiceResult},
+        runtime::{ServiceResult, TaskHandle},
     },
 };
 

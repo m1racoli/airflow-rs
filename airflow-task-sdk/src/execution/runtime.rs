@@ -23,20 +23,19 @@ impl From<ExecutionError> for ServiceResult {
     }
 }
 
-#[trait_variant::make(TaskHandle: Send)]
-pub trait LocalTaskHandle {
+#[trait_variant::make(Send)]
+pub trait TaskHandle {
     async fn service(&mut self, timeout: Duration) -> ServiceResult;
 
     // TODO rename to kill to reflect Python equivalent
     fn abort(&self);
 
     /// Send a response to the task.
-    /// TODO should this return a result?
     async fn respond(&mut self, msg: Result<ToTask, SupervisorCommsError>);
 }
 
 pub trait TaskRuntime: Sized + 'static {
-    type TaskHandle: LocalTaskHandle;
+    type TaskHandle: TaskHandle;
     type Instant: Copy;
     type TimeProvider: TimeProvider;
     type Comms: LocalSupervisorComms;
