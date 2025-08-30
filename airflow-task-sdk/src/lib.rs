@@ -4,5 +4,6 @@
 extern crate alloc;
 
 pub mod api;
+pub mod bases;
 pub mod definitions;
 pub mod execution;

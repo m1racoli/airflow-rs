@@ -15,10 +15,8 @@ use log::debug;
 use crate::execution::TaskRuntime;
 use crate::{
     api::datamodels::{TIRunContext, TISuccessStatePayload},
-    definitions::{
-        Context, DagBag, TaskError,
-        xcom::{BaseXcom, XCOM_RETURN_KEY, XCom, XComBackend, XComError, XComValue},
-    },
+    bases::xcom::{BaseXcom, XCOM_RETURN_KEY, XCom, XComBackend, XComError, XComValue},
+    definitions::{Context, DagBag, TaskError},
     execution::{
         ExecutionResultTIState, RuntimeTaskInstance, SupervisorCommsError, comms::SupervisorClient,
     },

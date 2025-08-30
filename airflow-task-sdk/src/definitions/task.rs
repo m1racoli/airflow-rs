@@ -7,7 +7,9 @@ use core::fmt::Pointer;
 use core::future::Future;
 use core::pin::Pin;
 
-use crate::definitions::{Context, Operator, xcom::XComValue};
+use crate::bases::operator::Operator;
+use crate::bases::xcom::XComValue;
+use crate::definitions::Context;
 use crate::execution::TaskRuntime;
 
 /// An error type which represents different errors that can occur during task execution.

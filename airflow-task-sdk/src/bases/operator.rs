@@ -1,7 +1,7 @@
+use crate::bases::xcom::XComValue;
 use crate::definitions::Context;
 use crate::definitions::Task;
 use crate::definitions::TaskError;
-use crate::definitions::xcom::XComValue;
 use crate::execution::TaskRuntime;
 
 #[trait_variant::make(Send + Sync)]
