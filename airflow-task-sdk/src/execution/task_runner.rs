@@ -1,5 +1,7 @@
 extern crate alloc;
+use alloc::boxed::Box;
 use alloc::string::String;
+use alloc::string::ToString;
 use alloc::vec;
 
 use airflow_common::{
