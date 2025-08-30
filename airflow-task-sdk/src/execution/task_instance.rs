@@ -76,14 +76,6 @@ impl<'t, R: TaskRuntime> RuntimeTaskInstance<'t, R> {
     }
 
     pub fn get_template_context(&'t self) -> Context<'t, R> {
-        Context {
-            dag_id: self.dag_id.clone(),
-            map_index: self.map_index,
-            run_id: self.run_id.clone(),
-            task_id: self.task_id.clone(),
-            task_instance: self,
-            ti: self,
-            try_number: self.try_number,
-        }
+        Context::new(self)
     }
 }

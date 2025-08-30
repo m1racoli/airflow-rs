@@ -1,18 +1,41 @@
-extern crate alloc;
-
-use alloc::string::String;
-
 use airflow_common::utils::MapIndex;
 
 use crate::execution::{RuntimeTaskInstance, TaskRuntime};
 
-// TODO remove any owned fields and operate fully on borrowed RuntimeTaskInstance
 pub struct Context<'t, R: TaskRuntime> {
-    pub dag_id: String,
-    pub map_index: MapIndex,
-    pub run_id: String,
-    pub task_id: String,
-    pub task_instance: &'t RuntimeTaskInstance<'t, R>,
-    pub ti: &'t RuntimeTaskInstance<'t, R>,
-    pub try_number: usize,
+    ti: &'t RuntimeTaskInstance<'t, R>,
+}
+
+impl<'t, R: TaskRuntime> Context<'t, R> {
+    pub fn new(ti: &'t RuntimeTaskInstance<'t, R>) -> Self {
+        Self { ti }
+    }
+
+    pub fn dag_id(&self) -> &str {
+        &self.ti.dag_id
+    }
+
+    pub fn map_index(&self) -> MapIndex {
+        self.ti.map_index
+    }
+
+    pub fn run_id(&self) -> &str {
+        &self.ti.run_id
+    }
+
+    pub fn task_id(&self) -> &str {
+        &self.ti.task_id
+    }
+
+    pub fn task_instance(&self) -> &RuntimeTaskInstance<'t, R> {
+        self.ti
+    }
+
+    pub fn ti(&self) -> &RuntimeTaskInstance<'t, R> {
+        self.ti
+    }
+
+    pub fn try_number(&self) -> usize {
+        self.ti.try_number
+    }
 }
