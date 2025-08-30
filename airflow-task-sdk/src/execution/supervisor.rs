@@ -13,8 +13,8 @@ use crate::{
     api::{ExecutionApiError, LocalExecutionApiClient, LocalExecutionApiClientFactory},
     definitions::DagBag,
     execution::{
-        ExecutionError, ExecutionResultTIState, LocalTaskRuntime, StartupDetails,
-        SupervisorCommsError, ToSupervisor, ToTask,
+        ExecutionError, ExecutionResultTIState, StartupDetails, SupervisorCommsError, TaskRuntime,
+        ToSupervisor, ToTask,
         runtime::{LocalTaskHandle, ServiceResult},
     },
 };
@@ -33,7 +33,7 @@ pub async fn supervise<F, R>(
 ) -> bool
 where
     F: LocalExecutionApiClientFactory + 'static,
-    R: LocalTaskRuntime,
+    R: TaskRuntime,
 {
     let ti = task.ti();
     debug!("Supervising task: {:?}", ti);
@@ -87,7 +87,7 @@ enum ActivityError<C: LocalExecutionApiClient> {
 }
 
 /// This is an equivalent of ActiveSubprocess in original Airflow, but async.
-struct ActivityTask<'a, C: LocalExecutionApiClient, R: LocalTaskRuntime> {
+struct ActivityTask<'a, C: LocalExecutionApiClient, R: TaskRuntime> {
     ti: &'a TaskInstance,
     client: C,
     handle: R::TaskHandle,
@@ -104,7 +104,7 @@ struct ActivityTask<'a, C: LocalExecutionApiClient, R: LocalTaskRuntime> {
 impl<'a, C, R> ActivityTask<'a, C, R>
 where
     C: LocalExecutionApiClient + 'static,
-    R: LocalTaskRuntime,
+    R: TaskRuntime,
 {
     async fn start(
         what: &'a TaskInstance,

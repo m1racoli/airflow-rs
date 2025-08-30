@@ -6,7 +6,7 @@ use core::{error::Error, marker::PhantomData};
 
 use airflow_common::utils::MapIndex;
 
-use crate::execution::LocalTaskRuntime;
+use crate::execution::TaskRuntime;
 use crate::{
     api::datamodels::XComResponse,
     definitions::serde::{
@@ -98,7 +98,7 @@ pub struct XCom<X: XComBackend>(PhantomData<X>);
 
 impl<X: XComBackend> XCom<X> {
     #[allow(clippy::too_many_arguments)]
-    pub async fn set<T: JsonSerialize + Sync, R: LocalTaskRuntime>(
+    pub async fn set<T: JsonSerialize + Sync, R: TaskRuntime>(
         client: &SupervisorClient<R>,
         dag_id: &str,
         run_id: &str,
@@ -126,7 +126,7 @@ impl<X: XComBackend> XCom<X> {
         Ok(())
     }
 
-    pub(super) async fn get_xcom_db_ref<R: LocalTaskRuntime>(
+    pub(super) async fn get_xcom_db_ref<R: TaskRuntime>(
         client: &SupervisorClient<R>,
         dag_id: &str,
         run_id: &str,
@@ -147,7 +147,7 @@ impl<X: XComBackend> XCom<X> {
         Ok(response)
     }
 
-    pub async fn delete<R: LocalTaskRuntime>(
+    pub async fn delete<R: TaskRuntime>(
         client: &SupervisorClient<R>,
         dag_id: &str,
         run_id: &str,

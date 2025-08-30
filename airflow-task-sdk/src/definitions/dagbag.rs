@@ -9,13 +9,13 @@ cfg_if::cfg_if! {
     }
 }
 
-use crate::{definitions::Dag, execution::LocalTaskRuntime};
+use crate::{definitions::Dag, execution::TaskRuntime};
 
-pub struct DagBag<R: LocalTaskRuntime> {
+pub struct DagBag<R: TaskRuntime> {
     dags: BTreeMap<String, Dag<R>>,
 }
 
-impl<R: LocalTaskRuntime> Default for DagBag<R> {
+impl<R: TaskRuntime> Default for DagBag<R> {
     fn default() -> Self {
         Self {
             dags: BTreeMap::new(),
@@ -23,7 +23,7 @@ impl<R: LocalTaskRuntime> Default for DagBag<R> {
     }
 }
 
-impl<R: LocalTaskRuntime> DagBag<R> {
+impl<R: TaskRuntime> DagBag<R> {
     pub fn add_dag(&mut self, dag: Dag<R>) {
         self.dags.insert(dag.dag_id().to_string(), dag);
     }

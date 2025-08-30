@@ -8,7 +8,7 @@ use core::future::Future;
 use core::pin::Pin;
 
 use crate::definitions::{Context, Operator, xcom::XComValue};
-use crate::execution::LocalTaskRuntime;
+use crate::execution::TaskRuntime;
 
 /// An error type which represents different errors that can occur during task execution.
 #[derive(thiserror::Error, Debug)]
@@ -19,13 +19,13 @@ pub enum TaskError {
 }
 
 #[derive(Debug)]
-pub struct Task<R: LocalTaskRuntime> {
+pub struct Task<R: TaskRuntime> {
     task_id: String,
     operator: Box<dyn DynOperator<R>>,
     do_xcom_push: bool,
 }
 
-impl<R: LocalTaskRuntime> Task<R> {
+impl<R: TaskRuntime> Task<R> {
     pub fn new(task_id: &str, operator: impl Operator<R> + 'static) -> Self {
         Self {
             task_id: task_id.to_string(),
@@ -55,13 +55,13 @@ impl<R: LocalTaskRuntime> Task<R> {
 
 type BoxedTaskResult = Result<Box<(dyn XComValue)>, TaskError>;
 
-impl<R: LocalTaskRuntime> fmt::Debug for Box<dyn DynOperator<R>> {
+impl<R: TaskRuntime> fmt::Debug for Box<dyn DynOperator<R>> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.as_ref().fmt(f)
     }
 }
 
-trait DynOperator<R: LocalTaskRuntime>: Send + Sync + 'static {
+trait DynOperator<R: TaskRuntime>: Send + Sync + 'static {
     fn execute_box<'t>(
         &'t mut self,
         ctx: &'t Context<'t, R>,
@@ -70,7 +70,7 @@ trait DynOperator<R: LocalTaskRuntime>: Send + Sync + 'static {
     fn clone_box(&self) -> Box<dyn DynOperator<R> + 'static>;
 }
 
-impl<T, R: LocalTaskRuntime> DynOperator<R> for T
+impl<T, R: TaskRuntime> DynOperator<R> for T
 where
     T: Operator<R> + 'static,
 {

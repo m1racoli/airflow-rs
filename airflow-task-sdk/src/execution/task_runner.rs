@@ -11,7 +11,7 @@ use airflow_common::{
 };
 use log::debug;
 
-use crate::execution::LocalTaskRuntime;
+use crate::execution::TaskRuntime;
 use crate::{
     api::datamodels::{TIRunContext, TISuccessStatePayload},
     definitions::{
@@ -50,12 +50,12 @@ pub enum ExecutionError {
     Serde(#[from] serde_json::Error),
 }
 
-pub struct TaskRunner<R: LocalTaskRuntime> {
+pub struct TaskRunner<R: TaskRuntime> {
     client: SupervisorClient<R>,
     time_provider: R::TimeProvider,
 }
 
-impl<R: LocalTaskRuntime> TaskRunner<R> {
+impl<R: TaskRuntime> TaskRunner<R> {
     pub fn new(comms: R::Comms, time_provider: R::TimeProvider) -> Self {
         Self {
             client: SupervisorClient::new(comms),
@@ -202,7 +202,7 @@ impl<R: LocalTaskRuntime> TaskRunner<R> {
     }
 }
 
-async fn xcom_push<T: JsonSerialize + Sync, R: LocalTaskRuntime>(
+async fn xcom_push<T: JsonSerialize + Sync, R: TaskRuntime>(
     ti: &RuntimeTaskInstance<'_, R>,
     key: &str,
     value: &T,

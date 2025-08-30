@@ -7,7 +7,7 @@ use airflow_common::utils::MapIndex;
 
 use crate::api::{ExecutionApiError, datamodels::*};
 use crate::definitions::serde::JsonValue;
-use crate::execution::LocalTaskRuntime;
+use crate::execution::TaskRuntime;
 
 /// Messages sent from the supervisor to the task.
 #[derive(Debug)]
@@ -83,13 +83,13 @@ pub trait LocalSupervisorComms: Sync {
 }
 
 #[derive(Debug)]
-pub struct SupervisorClient<R: LocalTaskRuntime> {
+pub struct SupervisorClient<R: TaskRuntime> {
     comms: R::Comms,
 }
 
 /// The supervisor client implements individual requests to the supervisor,
 /// given a supervisor comms instance.
-impl<R: LocalTaskRuntime> SupervisorClient<R> {
+impl<R: TaskRuntime> SupervisorClient<R> {
     pub(crate) fn new(comms: R::Comms) -> Self {
         Self { comms }
     }

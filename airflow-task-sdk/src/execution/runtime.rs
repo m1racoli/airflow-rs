@@ -35,8 +35,7 @@ pub trait LocalTaskHandle {
     async fn respond(&mut self, msg: Result<ToTask, SupervisorCommsError>);
 }
 
-#[trait_variant::make(TaskRuntime: Send)]
-pub trait LocalTaskRuntime: Sized + 'static {
+pub trait TaskRuntime: Sized + 'static {
     type TaskHandle: LocalTaskHandle;
     type Instant: Copy;
     type TimeProvider: TimeProvider;

@@ -9,14 +9,14 @@ cfg_if::cfg_if! {
     }
 }
 
-use crate::{definitions::Task, execution::LocalTaskRuntime};
+use crate::{definitions::Task, execution::TaskRuntime};
 
-pub struct Dag<R: LocalTaskRuntime> {
+pub struct Dag<R: TaskRuntime> {
     dag_id: String,
     tasks: BTreeMap<String, Task<R>>,
 }
 
-impl<R: LocalTaskRuntime> Dag<R> {
+impl<R: TaskRuntime> Dag<R> {
     pub fn new(dag_id: &str) -> Self {
         Self {
             dag_id: dag_id.to_string(),

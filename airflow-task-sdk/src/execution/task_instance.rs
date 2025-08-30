@@ -10,14 +10,14 @@ use airflow_common::{
 };
 use log::error;
 
-use crate::execution::LocalTaskRuntime;
+use crate::execution::TaskRuntime;
 use crate::{
     api::datamodels::TIRunContext,
     definitions::{Context, DagBag, Task},
     execution::{ExecutionError, StartupDetails, SupervisorClient},
 };
 
-pub struct RuntimeTaskInstance<'t, R: LocalTaskRuntime> {
+pub struct RuntimeTaskInstance<'t, R: TaskRuntime> {
     pub task: &'t Task<R>,
     pub id: UniqueTaskInstanceId,
     pub task_id: String,
@@ -33,7 +33,7 @@ pub struct RuntimeTaskInstance<'t, R: LocalTaskRuntime> {
     pub(super) client: &'t SupervisorClient<R>,
 }
 
-impl<'t, R: LocalTaskRuntime> RuntimeTaskInstance<'t, R> {
+impl<'t, R: TaskRuntime> RuntimeTaskInstance<'t, R> {
     pub fn new(
         details: StartupDetails,
         dag_bag: &'t DagBag<R>,

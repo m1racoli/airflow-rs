@@ -10,13 +10,13 @@ use crate::{
     api::EdgeJobFetched,
     worker::{IntercomMessage, LocalEdgeJob, LocalIntercom, WorkerState},
 };
-use airflow_task_sdk::{definitions::DagBag, execution::LocalTaskRuntime};
+use airflow_task_sdk::{definitions::DagBag, execution::TaskRuntime};
 
 #[trait_variant::make(WorkerRuntime: Send)]
 pub trait LocalWorkerRuntime {
     type Job: LocalEdgeJob;
     type Intercom: LocalIntercom;
-    type TaskRuntime: LocalTaskRuntime;
+    type TaskRuntime: TaskRuntime;
 
     async fn sleep(&mut self, duration: time::Duration) -> Option<IntercomMessage>;
     fn intercom(&self) -> Self::Intercom;

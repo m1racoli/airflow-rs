@@ -12,7 +12,6 @@ pub use comms::SupervisorCommsError;
 pub use comms::ToSupervisor;
 pub use comms::ToTask;
 pub use runtime::LocalTaskHandle;
-pub use runtime::LocalTaskRuntime;
 pub use runtime::ServiceResult;
 pub use runtime::TaskHandle;
 pub use runtime::TaskRuntime;

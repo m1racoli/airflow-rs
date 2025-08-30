@@ -4,10 +4,10 @@ use alloc::string::String;
 
 use airflow_common::utils::MapIndex;
 
-use crate::execution::{LocalTaskRuntime, RuntimeTaskInstance};
+use crate::execution::{RuntimeTaskInstance, TaskRuntime};
 
 // TODO remove any owned fields and operate fully on borrowed RuntimeTaskInstance
-pub struct Context<'t, R: LocalTaskRuntime> {
+pub struct Context<'t, R: TaskRuntime> {
     pub dag_id: String,
     pub map_index: MapIndex,
     pub run_id: String,
