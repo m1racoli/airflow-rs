@@ -28,7 +28,7 @@ impl Operator for ExampleOperator {
 }
 
 static DAG_BAG: LazyLock<DagBag> = LazyLock::new(|| {
-    let run = ExampleOperator::default().task("run");
+    let run = ExampleOperator::default().into_task("run");
     let mut dag = Dag::new("example_dag");
     dag.add_task(run);
     let mut dag_bag = DagBag::default();
