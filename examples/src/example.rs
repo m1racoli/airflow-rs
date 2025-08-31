@@ -1,16 +1,16 @@
-use core::f32;
-use std::{sync::LazyLock, time::Duration};
-
+use crate::tokio::TokioTaskRuntime;
+use airflow_common::serialization::serde::JsonValue;
 use airflow_task_sdk::{
     bases::operator::Operator,
     definitions::{Context, Dag, DagBag, TaskError},
     execution::TaskRuntime,
 };
+use core::f32;
 use log::error;
+use serde_json::json;
+use std::{sync::LazyLock, time::Duration};
 use tokio::time::sleep;
 use tracing::{info, warn};
-
-use crate::tokio::TokioTaskRuntime;
 
 #[derive(Debug, Clone)]
 pub struct ExampleOperator {
@@ -24,7 +24,7 @@ impl ExampleOperator {
 }
 
 impl<R: TaskRuntime> Operator<R> for ExampleOperator {
-    type Output = f32;
+    type Output = JsonValue;
 
     async fn execute<'t>(&'t mut self, ctx: &'t Context<'t, R>) -> Result<Self::Output, TaskError> {
         info!(
@@ -38,7 +38,13 @@ impl<R: TaskRuntime> Operator<R> for ExampleOperator {
         sleep(Duration::from_secs(self.sleep_secs)).await;
         warn!("This feels very fast! 😎");
         info!("I am done");
-        Ok(f32::consts::PI)
+
+        let output = json!({
+            "pi": f32::consts::PI,
+            "list": [1, 2, 3],
+            "map": { "hello": "world" }
+        });
+        Ok(output)
     }
 }
 
@@ -60,7 +66,13 @@ impl<R: TaskRuntime> Operator<R> for PrintXComOperator {
 
     async fn execute<'t>(&'t mut self, ctx: &'t Context<'t, R>) -> Result<Self::Output, TaskError> {
         let ti = ctx.task_instance();
-        match ti.xcom().task_id(&self.task_id).pull::<f32>().await {
+        match ti
+            .xcom()
+            .task_id(&self.task_id)
+            .key("pi")
+            .pull::<f32>()
+            .await
+        {
             Ok(xcom_value) => {
                 info!("XCom value: {}", xcom_value);
             }
@@ -73,7 +85,9 @@ impl<R: TaskRuntime> Operator<R> for PrintXComOperator {
 }
 
 static DAG_BAG: LazyLock<DagBag<TokioTaskRuntime>> = LazyLock::new(|| {
-    let run = ExampleOperator::new(5).into_task("run");
+    let run = ExampleOperator::new(5)
+        .into_task("run")
+        .with_multiple_outputs(true);
     let print_xcom = PrintXComOperator::new("run").into_task("print_xcom");
     let mut dag = Dag::new("example_dag");
     dag.add_task(run);

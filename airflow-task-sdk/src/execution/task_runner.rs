@@ -43,6 +43,8 @@ pub enum ExecutionError {
     XComForMappingNotPushed,
     #[error("Unmappable XCom type pushed: {0}")]
     UnmappableXComTypePushed(JsonValue),
+    #[error("Non-object XCom type pushed with multiple_outputs=true: {0}")]
+    NonObjectXComTypePushed(JsonValue),
 }
 
 pub struct TaskRunner<R: TaskRuntime> {
@@ -165,7 +167,19 @@ impl<R: TaskRuntime> TaskRunner<R> {
 
         info!("Pushing xcom {}", ti);
 
-        // TODO handle multiple outputs
+        if ti.task.multiple_outputs() {
+            match &xcom_value {
+                JsonValue::Object(map) => {
+                    for (key, value) in map {
+                        xcom_push(ti, key, value, None).await?;
+                    }
+                }
+                _ => {
+                    error!("Task with multiple_outputs=true pushed non-object XCom value");
+                    return Err(ExecutionError::NonObjectXComTypePushed(xcom_value));
+                }
+            }
+        }
 
         xcom_push(ti, XCOM_RETURN_KEY, &xcom_value, mapped_length).await?;
         Ok(())

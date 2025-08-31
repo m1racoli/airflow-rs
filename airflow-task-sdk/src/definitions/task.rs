@@ -23,6 +23,7 @@ pub struct Task<R: TaskRuntime> {
     task_id: String,
     operator: Box<dyn DynOperator<R>>,
     do_xcom_push: bool,
+    multiple_outputs: bool,
 }
 
 impl<R: TaskRuntime> Task<R> {
@@ -31,6 +32,7 @@ impl<R: TaskRuntime> Task<R> {
             task_id: task_id.to_string(),
             operator: Box::new(operator),
             do_xcom_push: true,
+            multiple_outputs: false,
         }
     }
 
@@ -39,8 +41,17 @@ impl<R: TaskRuntime> Task<R> {
         self
     }
 
+    pub fn with_multiple_outputs(mut self, multiple_outputs: bool) -> Self {
+        self.multiple_outputs = multiple_outputs;
+        self
+    }
+
     pub fn do_xcom_push(&self) -> bool {
         self.do_xcom_push
+    }
+
+    pub fn multiple_outputs(&self) -> bool {
+        self.multiple_outputs
     }
 
     pub fn task_id(&self) -> &str {
