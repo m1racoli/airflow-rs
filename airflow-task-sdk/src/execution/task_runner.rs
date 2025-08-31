@@ -1,26 +1,24 @@
 extern crate alloc;
-use airflow_common::serialization::serde::JsonSerialize;
-use alloc::boxed::Box;
-use alloc::string::String;
-use alloc::string::ToString;
-use alloc::vec;
-
+use crate::{
+    api::datamodels::{TIRunContext, TISuccessStatePayload},
+    bases::xcom::{BaseXcom, XCOM_RETURN_KEY, XCom, XComBackend, XComError},
+    definitions::{Context, DagBag, TaskError},
+    execution::{
+        ExecutionResultTIState, RuntimeTaskInstance, SupervisorCommsError, TaskRuntime,
+        comms::SupervisorClient,
+    },
+};
 use airflow_common::{
     datetime::{TimeProvider, UtcDateTime},
     executors::TaskInstance,
+    serialization::serde::{JsonSerialize, JsonValue},
     utils::TaskInstanceState,
 };
-use log::{debug, error};
-
-use crate::execution::TaskRuntime;
-use crate::{
-    api::datamodels::{TIRunContext, TISuccessStatePayload},
-    bases::xcom::{BaseXcom, XCOM_RETURN_KEY, XCom, XComBackend, XComError, XComValue},
-    definitions::{Context, DagBag, TaskError},
-    execution::{
-        ExecutionResultTIState, RuntimeTaskInstance, SupervisorCommsError, comms::SupervisorClient,
-    },
+use alloc::{
+    string::{String, ToString},
+    vec,
 };
+use log::{debug, error};
 
 #[derive(Debug)]
 pub struct StartupDetails {
@@ -131,7 +129,7 @@ impl<R: TaskRuntime> TaskRunner<R> {
 
     async fn push_xcom_if_needed(
         &self,
-        result: Box<dyn XComValue>,
+        result: JsonValue,
         ti: &RuntimeTaskInstance<'_, R>,
     ) -> Result<(), ExecutionError> {
         if !ti.task.do_xcom_push() {

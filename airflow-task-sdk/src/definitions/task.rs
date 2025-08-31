@@ -1,16 +1,12 @@
 extern crate alloc;
-use alloc::boxed::Box;
-use alloc::string::String;
-use alloc::string::ToString;
-use core::fmt;
-use core::fmt::Pointer;
-use core::future::Future;
-use core::pin::Pin;
-
-use crate::bases::operator::Operator;
-use crate::bases::xcom::XComValue;
-use crate::definitions::Context;
-use crate::execution::TaskRuntime;
+use crate::{bases::operator::Operator, definitions::Context, execution::TaskRuntime};
+use airflow_common::serialization::serde::{self, JsonValue, serialize};
+use alloc::{
+    boxed::Box,
+    string::{String, ToString},
+};
+use core::fmt::{self, Pointer};
+use core::{future::Future, pin::Pin};
 
 /// An error type which represents different errors that can occur during task execution.
 #[derive(thiserror::Error, Debug)]
@@ -18,6 +14,8 @@ pub enum TaskError {
     // TODO all task specific errors (deferrable, skipped, etc.)
     #[error("Unknown error")]
     Unknown,
+    #[error(transparent)]
+    JsonSerde(#[from] serde::JsonSerdeError),
 }
 
 #[derive(Debug)]
@@ -55,7 +53,7 @@ impl<R: TaskRuntime> Task<R> {
     }
 }
 
-type BoxedTaskResult = Result<Box<(dyn XComValue)>, TaskError>;
+type BoxedTaskResult = Result<JsonValue, TaskError>;
 
 impl<R: TaskRuntime> fmt::Debug for Box<dyn DynOperator<R>> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -82,7 +80,7 @@ where
     ) -> Pin<Box<dyn Future<Output = BoxedTaskResult> + Send + Sync + 't>> {
         Box::pin(async {
             match self.execute(ctx).await {
-                Ok(xcom) => Ok(xcom.into()),
+                Ok(xcom) => Ok(serialize(&xcom)?),
                 Err(e) => Err(e),
             }
         })
