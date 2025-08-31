@@ -10,7 +10,7 @@ use airflow_common::{
     executors::TaskInstance,
     utils::TaskInstanceState,
 };
-use log::debug;
+use log::{debug, error};
 
 use crate::execution::TaskRuntime;
 use crate::{
@@ -156,11 +156,24 @@ impl<R: TaskRuntime> TaskRunner<R> {
     }
 
     async fn _main(self, what: StartupDetails, dag_bag: &DagBag<R>) -> Result<(), ExecutionError> {
-        let ti = self.startup(what, dag_bag).await?;
+        let ti = match self.startup(what, dag_bag).await {
+            Ok(ti) => ti,
+            Err(e) => {
+                error!("{}", e);
+                return Err(e);
+            }
+        };
         let context = ti.get_template_context();
-        let (state, error) = self.run(&ti, &context).await?;
+        let (state, error) = match self.run(&ti, &context).await {
+            Ok(result) => result,
+            Err(e) => {
+                error!("{}", e);
+                return Err(e);
+            }
+        };
         self.finalize(&ti, state, &context, error).await;
         // TODO communicate task result properly
+        // errors during task execution should be logged here and we only provide a general indication of failure
         Ok(())
     }
 
