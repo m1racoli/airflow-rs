@@ -1,7 +1,7 @@
 extern crate alloc;
 use crate::{
     api::datamodels::{TIRunContext, TISuccessStatePayload},
-    bases::xcom::{BaseXcom, XCOM_RETURN_KEY, XCom, XComBackend, XComError},
+    bases::xcom::{BaseXcom, XCOM_RETURN_KEY, XCom, XComError},
     definitions::{Context, DagBag, TaskError},
     execution::{
         ExecutionResultTIState, RuntimeTaskInstance, SupervisorCommsError, TaskRuntime,
@@ -14,10 +14,7 @@ use airflow_common::{
     serialization::serde::{JsonSerialize, JsonValue},
     utils::TaskInstanceState,
 };
-use alloc::{
-    string::{String, ToString},
-    vec,
-};
+use alloc::{string::String, vec};
 use log::{debug, error, info};
 
 #[derive(Debug)]
@@ -150,7 +147,11 @@ impl<R: TaskRuntime> TaskRunner<R> {
             return Ok(());
         }
 
-        // TODO handle if task is not mapped, but has mapped dependants
+        // let mapped_length = if !ti.is_mapped && has_mapped_dependants {
+        //     Some(1) // TODO get actual mapped length from task
+        // } else {
+        //     None
+        // };
 
         info!("Pushing xcom {}", ti);
 
@@ -231,38 +232,16 @@ async fn xcom_push<T: JsonSerialize + Sync, R: TaskRuntime>(
     value: &T,
     mapped_length: Option<usize>,
 ) -> Result<(), XComError<BaseXcom>> {
-    // We can't use XCom::set here due to some weird issue with higher ranked type bonds
-    // probably related to the use of Box<dyn XComValue>. In fact the actual error occurs in
-    // `tokio::spawn` looking like this:
-    //
-    //   implementation of `X` is not general enough
-    //   = note: `X<'0>` would have to be implemented for the type `&str`, for any lifetime `'0`...
-    //   = note: ...but `X<'1>` is actually implemented for the type `&'1 str`, for some specific lifetime `'1`
-    //
-    // There's a lot to read on the topic, but no clear solution:
-    // - https://lucumr.pocoo.org/2022/9/11/abstracting-over-ownership/
-
-    let value = BaseXcom::serialize_value(
+    XCom::<BaseXcom>::set(
+        ti.client,
         ti.dag_id(),
-        ti.task_id(),
         ti.run_id(),
+        ti.task_id(),
         ti.map_index(),
         key,
         value,
+        mapped_length,
     )
-    .await
-    .map_err(XComError::Backend)?;
-
-    ti.client
-        .set_xcom(
-            key.to_string(),
-            value,
-            ti.dag_id().to_string(),
-            ti.run_id().to_string(),
-            ti.task_id().to_string(),
-            Some(ti.map_index()),
-            mapped_length,
-        )
-        .await?;
+    .await?;
     Ok(())
 }
