@@ -18,7 +18,7 @@ use alloc::{
     string::{String, ToString},
     vec,
 };
-use log::{debug, error};
+use log::{debug, error, info};
 
 #[derive(Debug)]
 pub struct StartupDetails {
@@ -42,6 +42,8 @@ pub enum ExecutionError {
     Panicked,
     #[error("XCom error occurred: {0}")]
     XCom(#[from] XComError<BaseXcom>),
+    #[error("Did not push XCom for task mapping")]
+    XComForMappingNotPushed,
 }
 
 pub struct TaskRunner<R: TaskRuntime> {
@@ -132,15 +134,29 @@ impl<R: TaskRuntime> TaskRunner<R> {
         result: JsonValue,
         ti: &RuntimeTaskInstance<'_, R>,
     ) -> Result<(), ExecutionError> {
-        if !ti.task.do_xcom_push() {
+        let xcom_value = if ti.task.do_xcom_push() {
+            result
+        } else {
+            JsonValue::Null
+        };
+
+        let has_mapped_dependants = false; // TODO get mapped dependants from task
+        if xcom_value.is_null() {
+            if !ti.is_mapped && has_mapped_dependants {
+                error!("Task did not push XCom value, but has mapped dependants;");
+                return Err(ExecutionError::XComForMappingNotPushed);
+            }
+            debug!("Not pushing null XCom value");
             return Ok(());
         }
 
-        // TODO handle if no xcom to push, but has mapped dependants
         // TODO handle if task is not mapped, but has mapped dependants
+
+        info!("Pushing xcom {}", ti);
+
         // TODO handle multiple outputs
 
-        xcom_push(ti, XCOM_RETURN_KEY, &result, None).await?;
+        xcom_push(ti, XCOM_RETURN_KEY, &xcom_value, None).await?;
         Ok(())
     }
 
