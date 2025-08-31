@@ -6,8 +6,8 @@ use crate::execution::TaskRuntime;
 
 #[trait_variant::make(Send + Sync)]
 pub trait Operator<R: TaskRuntime>: Clone + 'static {
-    type Item: XComValue + 'static;
-    async fn execute<'t>(&'t mut self, ctx: &'t Context<'t, R>) -> Result<Self::Item, TaskError>;
+    type Output: XComValue + 'static;
+    async fn execute<'t>(&'t mut self, ctx: &'t Context<'t, R>) -> Result<Self::Output, TaskError>;
 
     /// Create a task from this operator with the given task ID.
     /// The task ID must be unique within the DAG.
