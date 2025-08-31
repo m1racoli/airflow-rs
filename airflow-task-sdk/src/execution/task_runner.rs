@@ -2,7 +2,7 @@ extern crate alloc;
 use crate::{
     api::datamodels::{TIRunContext, TISuccessStatePayload},
     bases::xcom::{BaseXcom, XCOM_RETURN_KEY, XCom, XComError},
-    definitions::{Context, DagBag, TaskError},
+    definitions::{Context, DagBag, TaskError, mappedoperator::is_mappable_value},
     execution::{
         ExecutionResultTIState, RuntimeTaskInstance, SupervisorCommsError, TaskRuntime,
         comms::SupervisorClient,
@@ -41,6 +41,8 @@ pub enum ExecutionError {
     XCom(#[from] XComError<BaseXcom>),
     #[error("Did not push XCom for task mapping")]
     XComForMappingNotPushed,
+    #[error("Unmappable XCom type pushed: {0}")]
+    UnmappableXComTypePushed(JsonValue),
 }
 
 pub struct TaskRunner<R: TaskRuntime> {
@@ -147,17 +149,25 @@ impl<R: TaskRuntime> TaskRunner<R> {
             return Ok(());
         }
 
-        // let mapped_length = if !ti.is_mapped && has_mapped_dependants {
-        //     Some(1) // TODO get actual mapped length from task
-        // } else {
-        //     None
-        // };
+        let mapped_length = if !ti.is_mapped && has_mapped_dependants {
+            if !is_mappable_value(&xcom_value) {
+                error!("Task pushed unmappable XCom value, but has mapped dependants;");
+                return Err(ExecutionError::UnmappableXComTypePushed(xcom_value));
+            }
+            match &xcom_value {
+                JsonValue::Array(arr) => Some(arr.len()),
+                JsonValue::Object(obj) => Some(obj.len()),
+                _ => None,
+            }
+        } else {
+            None
+        };
 
         info!("Pushing xcom {}", ti);
 
         // TODO handle multiple outputs
 
-        xcom_push(ti, XCOM_RETURN_KEY, &xcom_value, None).await?;
+        xcom_push(ti, XCOM_RETURN_KEY, &xcom_value, mapped_length).await?;
         Ok(())
     }
 

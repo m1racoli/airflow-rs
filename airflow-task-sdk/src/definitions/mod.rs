@@ -1,6 +1,7 @@
 mod context;
 mod dag;
 mod dagbag;
+pub mod mappedoperator;
 mod task;
 
 pub use context::Context;
