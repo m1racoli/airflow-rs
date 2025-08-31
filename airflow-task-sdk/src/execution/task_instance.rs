@@ -1,22 +1,19 @@
 extern crate alloc;
-use alloc::string::String;
-use alloc::string::ToString;
-
+use crate::{
+    api::datamodels::TIRunContext,
+    bases::xcom::XComRequest,
+    definitions::{Context, DagBag, Task},
+    execution::{ExecutionError, StartupDetails, SupervisorClient, TaskRuntime},
+};
 use airflow_common::{
     datetime::UtcDateTime,
     executors::UniqueTaskInstanceId,
     models::TaskInstanceLike,
     utils::{MapIndex, TaskInstanceState},
 };
+use alloc::string::{String, ToString};
+use core::fmt::Display;
 use log::error;
-
-use crate::bases::xcom::XComRequest;
-use crate::execution::TaskRuntime;
-use crate::{
-    api::datamodels::TIRunContext,
-    definitions::{Context, DagBag, Task},
-    execution::{ExecutionError, StartupDetails, SupervisorClient},
-};
 
 pub struct RuntimeTaskInstance<'t, R: TaskRuntime> {
     id: UniqueTaskInstanceId,
@@ -26,16 +23,42 @@ pub struct RuntimeTaskInstance<'t, R: TaskRuntime> {
     try_number: usize,
     map_index: MapIndex,
 
-    // TODO visibility to be determined
-    _max_tries: usize,
-    _start_date: UtcDateTime,
-    _state: TaskInstanceState,
-    _is_mapped: bool,
-
+    pub(crate) max_tries: usize,
+    pub(crate) start_date: UtcDateTime,
+    pub(crate) state: TaskInstanceState,
+    pub(crate) is_mapped: bool,
     pub(crate) rendered_map_index: Option<String>,
     pub(crate) task: &'t Task<R>,
     pub(crate) ti_context_from_server: TIRunContext,
     pub(crate) client: &'t SupervisorClient<R>,
+}
+
+impl<'t, R: TaskRuntime> core::fmt::Debug for RuntimeTaskInstance<'t, R> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("RuntimeTaskInstance")
+            .field("id", &self.id)
+            .field("task_id", &self.task_id)
+            .field("dag_id", &self.dag_id)
+            .field("run_id", &self.run_id)
+            .field("try_number", &self.try_number)
+            .field("map_index", &self.map_index)
+            .field("max_tries", &self.max_tries)
+            .field("start_date", &self.start_date)
+            .field("state", &self.state)
+            .field("is_mapped", &self.is_mapped)
+            .field("rendered_map_index", &self.rendered_map_index)
+            .finish()
+    }
+}
+
+impl<'t, R: TaskRuntime> Display for RuntimeTaskInstance<'t, R> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(
+            f,
+            "id={} task_id={} dag_id={} run_id={} try_number={} map_index={}",
+            self.id, self.task_id, self.dag_id, self.run_id, self.try_number, self.map_index
+        )
+    }
 }
 
 impl<'t, R: TaskRuntime> RuntimeTaskInstance<'t, R> {
@@ -67,11 +90,10 @@ impl<'t, R: TaskRuntime> RuntimeTaskInstance<'t, R> {
             try_number: details.ti.try_number(),
             map_index: details.ti.map_index(),
 
-            _max_tries: max_tries,
-            _start_date: details.start_date,
-            _state: TaskInstanceState::Running,
-            _is_mapped: false,
-
+            max_tries,
+            start_date: details.start_date,
+            state: TaskInstanceState::Running,
+            is_mapped: false,
             rendered_map_index: None,
             task,
             ti_context_from_server,
