@@ -1,5 +1,12 @@
 extern crate alloc;
-use crate::{bases::operator::Operator, definitions::Context, execution::TaskRuntime};
+use crate::{
+    bases::{
+        operator::Operator,
+        xcom::{BaseXcom, XComError},
+    },
+    definitions::Context,
+    execution::TaskRuntime,
+};
 use airflow_common::serialization::serde::{self, JsonValue, serialize};
 use alloc::{
     boxed::Box,
@@ -16,6 +23,8 @@ pub enum TaskError {
     Unknown,
     #[error(transparent)]
     JsonSerde(#[from] serde::JsonSerdeError),
+    #[error(transparent)]
+    XCom(#[from] XComError<BaseXcom>),
 }
 
 #[derive(Debug)]

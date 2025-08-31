@@ -70,6 +70,12 @@ pub enum XComError<X: XComBackend> {
     Backend(X::Error),
     #[error(transparent)]
     Comms(#[from] SupervisorCommsError),
+    #[error("Did not push XCom for task mapping")]
+    XComForMappingNotPushed,
+    #[error("Unmappable XCom type pushed: {0}")]
+    UnmappableXComTypePushed(JsonValue),
+    #[error("Non-object XCom type pushed with multiple_outputs=true: {0}")]
+    NonObjectXComTypePushed(JsonValue),
 }
 
 #[derive(Default)]

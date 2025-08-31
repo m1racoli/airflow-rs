@@ -37,14 +37,6 @@ pub enum ExecutionError {
     Cancelled,
     #[error("Task runner has panicked")]
     Panicked,
-    #[error("XCom error occurred: {0}")]
-    XCom(#[from] XComError<BaseXcom>),
-    #[error("Did not push XCom for task mapping")]
-    XComForMappingNotPushed,
-    #[error("Unmappable XCom type pushed: {0}")]
-    UnmappableXComTypePushed(JsonValue),
-    #[error("Non-object XCom type pushed with multiple_outputs=true: {0}")]
-    NonObjectXComTypePushed(JsonValue),
 }
 
 pub struct TaskRunner<R: TaskRuntime> {
@@ -60,11 +52,12 @@ impl<R: TaskRuntime> TaskRunner<R> {
         }
     }
 
-    async fn run(
+    /// Wrap XCom operations and task execution in a function in order to treat them as task errors
+    async fn execute_task(
         &self,
         ti: &RuntimeTaskInstance<'_, R>,
         context: &Context<'_, R>,
-    ) -> Result<(ExecutionResultTIState, Option<TaskError>), ExecutionError> {
+    ) -> Result<(), TaskError> {
         // clear the xcom data sent from server
         for key in ti.ti_context_from_server.xcom_keys_to_clear.iter() {
             debug!("Clearing XCom key: {}", key);
@@ -80,14 +73,29 @@ impl<R: TaskRuntime> TaskRunner<R> {
         }
 
         // TODO call on_execute_callback
+
         let task = ti.task;
-        let (state, error) = match task.execute(context).await {
-            Ok(result) => {
-                self.push_xcom_if_needed(result, ti).await?;
+        match task.execute(context).await {
+            Ok(result) => Ok(self.push_xcom_if_needed(result, ti).await?),
+            Err(e) => Err(e),
+        }
+    }
+
+    async fn run(
+        &self,
+        ti: &RuntimeTaskInstance<'_, R>,
+        context: &Context<'_, R>,
+    ) -> Result<(ExecutionResultTIState, Option<TaskError>), ExecutionError> {
+        let (state, error) = match self.execute_task(ti, context).await {
+            Ok(()) => {
                 self.handle_current_task_success(ti, context).await?;
                 (ExecutionResultTIState::Success, None)
             }
-            Err(error) => (ExecutionResultTIState::Failed, Some(error)),
+            // TODO handle different task errors
+            Err(e) => {
+                error!("Task execution failed: {}", e);
+                (ExecutionResultTIState::Failed, Some(e))
+            }
         };
         // TODO can we mutate ti somehow while context exists?
         // ti.state = state.into();
@@ -134,7 +142,7 @@ impl<R: TaskRuntime> TaskRunner<R> {
         &self,
         result: JsonValue,
         ti: &RuntimeTaskInstance<'_, R>,
-    ) -> Result<(), ExecutionError> {
+    ) -> Result<(), XComError<BaseXcom>> {
         let xcom_value = if ti.task.do_xcom_push() {
             result
         } else {
@@ -145,7 +153,7 @@ impl<R: TaskRuntime> TaskRunner<R> {
         if xcom_value.is_null() {
             if !ti.is_mapped && has_mapped_dependants {
                 error!("Task did not push XCom value, but has mapped dependants;");
-                return Err(ExecutionError::XComForMappingNotPushed);
+                return Err(XComError::XComForMappingNotPushed);
             }
             debug!("Not pushing null XCom value");
             return Ok(());
@@ -154,7 +162,7 @@ impl<R: TaskRuntime> TaskRunner<R> {
         let mapped_length = if !ti.is_mapped && has_mapped_dependants {
             if !is_mappable_value(&xcom_value) {
                 error!("Task pushed unmappable XCom value, but has mapped dependants;");
-                return Err(ExecutionError::UnmappableXComTypePushed(xcom_value));
+                return Err(XComError::UnmappableXComTypePushed(xcom_value));
             }
             match &xcom_value {
                 JsonValue::Array(arr) => Some(arr.len()),
@@ -176,7 +184,7 @@ impl<R: TaskRuntime> TaskRunner<R> {
                 }
                 _ => {
                     error!("Task with multiple_outputs=true pushed non-object XCom value");
-                    return Err(ExecutionError::NonObjectXComTypePushed(xcom_value));
+                    return Err(XComError::NonObjectXComTypePushed(xcom_value));
                 }
             }
         }
