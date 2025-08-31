@@ -4,12 +4,14 @@ use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::string::ToString;
 use core::{error::Error, marker::PhantomData};
+use log::info;
 
 use airflow_common::serialization::serde::{
     JsonDeserialize, JsonSerdeError, JsonSerialize, deserialize, serialize,
 };
 use airflow_common::utils::MapIndex;
 
+use crate::execution::RuntimeTaskInstance;
 use crate::execution::TaskRuntime;
 use crate::{
     api::datamodels::XComResponse,
@@ -127,6 +129,38 @@ impl<X: XComBackend> XCom<X> {
         Ok(())
     }
 
+    pub async fn get_one<T: JsonDeserialize + Send, R: TaskRuntime>(
+        client: &SupervisorClient<R>,
+        dag_id: &str,
+        run_id: &str,
+        task_id: &str,
+        map_index: MapIndex,
+        key: &str,
+        include_prior_dates: Option<bool>,
+    ) -> Result<T, XComError<X>> {
+        let response = client
+            .get_xcom(
+                key.to_string(),
+                dag_id.to_string(),
+                run_id.to_string(),
+                task_id.to_string(),
+                Some(map_index),
+                include_prior_dates,
+            )
+            .await?;
+
+        if response.value.is_null() {
+            // we just show the warning and continue as usual, because defaults
+            // are implemented by deserializing Options.
+            info!(
+                "No XCom value found; defaulting to None. key={key} dag_id={dag_id} task_id={task_id} run_id={run_id} map_index={map_index}"
+            );
+        }
+
+        let result = deserialize(&response.value).map_err(XComError::Serde)?;
+        Ok(result)
+    }
+
     pub(crate) async fn get_xcom_db_ref<R: TaskRuntime>(
         client: &SupervisorClient<R>,
         dag_id: &str,
@@ -170,5 +204,76 @@ impl<X: XComBackend> XCom<X> {
             .await?;
 
         Ok(())
+    }
+}
+
+pub struct XComRequest<'t, R: TaskRuntime> {
+    client: &'t SupervisorClient<R>,
+    dag_id: &'t str,
+    run_id: &'t str,
+    task_id: &'t str,
+    map_index: Option<MapIndex>,
+    key: &'t str,
+    include_prior_dates: Option<bool>,
+}
+
+impl<'t, R: TaskRuntime> XComRequest<'t, R> {
+    pub(crate) fn new(ti: &'t RuntimeTaskInstance<'t, R>) -> Self {
+        Self {
+            client: ti.client,
+            dag_id: ti.dag_id(),
+            run_id: ti.run_id(),
+            task_id: ti.task_id(),
+            map_index: Some(MapIndex::none()), // for now don't handle mapped tasks
+            key: XCOM_RETURN_KEY,
+            include_prior_dates: None,
+        }
+    }
+
+    pub fn dag_id(mut self, dag_id: &'t str) -> Self {
+        self.dag_id = dag_id;
+        self
+    }
+
+    pub fn run_id(mut self, run_id: &'t str) -> Self {
+        self.run_id = run_id;
+        self
+    }
+
+    pub fn task_id(mut self, task_id: &'t str) -> Self {
+        self.task_id = task_id;
+        self
+    }
+
+    pub fn key(mut self, key: &'t str) -> Self {
+        self.key = key;
+        self
+    }
+
+    pub fn include_prior_dates(mut self, include_prior_dates: bool) -> Self {
+        self.include_prior_dates = Some(include_prior_dates);
+        self
+    }
+
+    // TODO handle multiple task ids and/or multiple map indices (phantom data?)
+    pub async fn pull<T: JsonDeserialize + Send>(self) -> Result<T, XComError<BaseXcom>> {
+        match self.map_index {
+            Some(map_index) => {
+                let result = XCom::<BaseXcom>::get_one(
+                    self.client,
+                    self.dag_id,
+                    self.run_id,
+                    self.task_id,
+                    map_index,
+                    self.key,
+                    self.include_prior_dates,
+                )
+                .await?;
+                Ok(result)
+            }
+            None => {
+                todo!("");
+            }
+        }
     }
 }

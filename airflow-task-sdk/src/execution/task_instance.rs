@@ -10,6 +10,7 @@ use airflow_common::{
 };
 use log::error;
 
+use crate::bases::xcom::XComRequest;
 use crate::execution::TaskRuntime;
 use crate::{
     api::datamodels::TIRunContext,
@@ -104,5 +105,9 @@ impl<'t, R: TaskRuntime> RuntimeTaskInstance<'t, R> {
 
     pub fn id(&self) -> &UniqueTaskInstanceId {
         &self.id
+    }
+
+    pub fn xcom(&'t self) -> XComRequest<'t, R> {
+        XComRequest::new(self)
     }
 }
