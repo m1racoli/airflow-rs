@@ -47,13 +47,11 @@ impl<R: TaskRuntime> Task<R> {
         &self.task_id
     }
 
-    pub async fn execute<'t>(&'t self, ctx: &'t Context<'t, R>) -> BoxedTaskResult {
+    pub async fn execute<'t>(&'t self, ctx: &'t Context<'t, R>) -> Result<JsonValue, TaskError> {
         let mut operator = self.operator.clone_box();
         operator.execute_box(ctx).await
     }
 }
-
-type BoxedTaskResult = Result<JsonValue, TaskError>;
 
 impl<R: TaskRuntime> fmt::Debug for Box<dyn DynOperator<R>> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -65,7 +63,7 @@ trait DynOperator<R: TaskRuntime>: Send + Sync + 'static {
     fn execute_box<'t>(
         &'t mut self,
         ctx: &'t Context<'t, R>,
-    ) -> Pin<Box<dyn Future<Output = BoxedTaskResult> + Send + Sync + 't>>;
+    ) -> Pin<Box<dyn Future<Output = Result<JsonValue, TaskError>> + Send + Sync + 't>>;
 
     fn clone_box(&self) -> Box<dyn DynOperator<R> + 'static>;
 }
@@ -77,7 +75,7 @@ where
     fn execute_box<'t>(
         &'t mut self,
         ctx: &'t Context<'t, R>,
-    ) -> Pin<Box<dyn Future<Output = BoxedTaskResult> + Send + Sync + 't>> {
+    ) -> Pin<Box<dyn Future<Output = Result<JsonValue, TaskError>> + Send + Sync + 't>> {
         Box::pin(async {
             match self.execute(ctx).await {
                 Ok(xcom) => Ok(serialize(&xcom)?),
