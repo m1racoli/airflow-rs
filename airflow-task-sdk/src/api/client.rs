@@ -20,6 +20,8 @@ pub enum ExecutionApiError<E: error::Error> {
     NotFound(String), // TODO do we want to retrieve detailed reason and message from error response?
     #[error("Conflict: {0}")]
     Conflict(String),
+    #[error("HTTP error {0} for {1}: {2}")]
+    Http(u16, String, String),
     #[error(transparent)]
     Client(#[from] E),
     #[error("{0}")]

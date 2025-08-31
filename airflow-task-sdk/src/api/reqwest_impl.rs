@@ -70,10 +70,17 @@ impl ReqwestExecutionApiClient {
         match response.status() {
             StatusCode::NOT_FOUND => Err(ExecutionApiError::NotFound(response.text().await?)),
             StatusCode::CONFLICT => Err(ExecutionApiError::Conflict(response.text().await?)),
-            _ => match response.error_for_status() {
-                Ok(response) => Ok(response),
-                Err(e) => Err(ExecutionApiError::Client(e)),
-            },
+            status => {
+                if !status.is_success() {
+                    Err(ExecutionApiError::Http(
+                        status.as_u16(),
+                        response.url().to_string(),
+                        response.text().await?,
+                    ))
+                } else {
+                    Ok(response)
+                }
+            }
         }
     }
 }
