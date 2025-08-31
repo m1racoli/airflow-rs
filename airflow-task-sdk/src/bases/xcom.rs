@@ -1,43 +1,19 @@
 extern crate alloc;
-use airflow_common::serialization::serde::JsonValue;
-use alloc::boxed::Box;
-use alloc::string::String;
+use crate::{
+    api::datamodels::XComResponse,
+    execution::{RuntimeTaskInstance, SupervisorClient, SupervisorCommsError, TaskRuntime},
+};
+use airflow_common::{
+    serialization::serde::{
+        JsonDeserialize, JsonSerdeError, JsonSerialize, JsonValue, deserialize, serialize,
+    },
+    utils::MapIndex,
+};
 use alloc::string::ToString;
 use core::{error::Error, marker::PhantomData};
 use log::info;
 
-use airflow_common::serialization::serde::{
-    JsonDeserialize, JsonSerdeError, JsonSerialize, deserialize, serialize,
-};
-use airflow_common::utils::MapIndex;
-
-use crate::execution::RuntimeTaskInstance;
-use crate::execution::TaskRuntime;
-use crate::{
-    api::datamodels::XComResponse,
-    execution::{SupervisorClient, SupervisorCommsError},
-};
-
 pub static XCOM_RETURN_KEY: &str = "return_value";
-
-pub trait XComValue: JsonSerialize + JsonDeserialize + Send + Sync {}
-
-impl<T> XComValue for T where T: JsonSerialize + JsonDeserialize + Send + Sync {}
-
-impl<T> From<T> for Box<dyn XComValue>
-where
-    T: XComValue + 'static,
-{
-    fn from(value: T) -> Self {
-        Box::new(value)
-    }
-}
-
-impl JsonSerialize for Box<dyn XComValue> {
-    fn serialize(&self) -> Result<String, JsonSerdeError> {
-        self.as_ref().serialize()
-    }
-}
 
 #[trait_variant::make(Send)]
 pub trait XComBackend {
@@ -54,7 +30,7 @@ pub trait XComBackend {
     ) -> Result<JsonValue, Self::Error>;
 
     /// Deserialize XCom value from JSON.
-    async fn deserialize_value<T: XComValue>(xcom: &XComResponse) -> Result<T, Self::Error>;
+    async fn deserialize_value<T: JsonDeserialize>(xcom: &XComResponse) -> Result<T, Self::Error>;
 
     /// Purge an XCom entry from underlying storage implementations.
     async fn purge(xcom: &XComResponse) -> Result<(), Self::Error>;
@@ -77,7 +53,7 @@ impl XComBackend for BaseXcom {
         serialize(value)
     }
 
-    async fn deserialize_value<T: XComValue>(xcom: &XComResponse) -> Result<T, Self::Error> {
+    async fn deserialize_value<T: JsonDeserialize>(xcom: &XComResponse) -> Result<T, Self::Error> {
         deserialize(&xcom.value)
     }
 

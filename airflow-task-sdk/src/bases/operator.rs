@@ -1,12 +1,12 @@
-use crate::bases::xcom::XComValue;
-use crate::definitions::Context;
-use crate::definitions::Task;
-use crate::definitions::TaskError;
-use crate::execution::TaskRuntime;
+use crate::{
+    definitions::{Context, Task, TaskError},
+    execution::TaskRuntime,
+};
+use airflow_common::serialization::serde::JsonSerialize;
 
 #[trait_variant::make(Send + Sync)]
 pub trait Operator<R: TaskRuntime>: Clone + 'static {
-    type Output: XComValue + 'static;
+    type Output: JsonSerialize;
     async fn execute<'t>(&'t mut self, ctx: &'t Context<'t, R>) -> Result<Self::Output, TaskError>;
 
     /// Create a task from this operator with the given task ID.
