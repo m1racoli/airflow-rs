@@ -136,11 +136,23 @@ impl ExecutionApiClient for ReqwestExecutionApiClient {
 
     async fn task_instances_retry(
         &mut self,
-        _id: &UniqueTaskInstanceId,
-        _when: &UtcDateTime,
-        _rendered_map_index: Option<&str>,
+        id: &UniqueTaskInstanceId,
+        when: &UtcDateTime,
+        rendered_map_index: Option<&str>,
     ) -> Result<(), ExecutionApiError<Self::Error>> {
-        todo!()
+        let path = format!("task-instances/{id}/state");
+        let body = TIRetryStatePayloadBody {
+            state: TaskInstanceState::UpForRetry,
+            end_date: when,
+            rendered_map_index,
+        };
+        let response = self
+            .request(Method::PATCH, &path)?
+            .json(&body)
+            .send()
+            .await?;
+        self.handle_response(response).await?;
+        Ok(())
     }
 
     async fn task_instances_succeed(

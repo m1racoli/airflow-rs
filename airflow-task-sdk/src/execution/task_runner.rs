@@ -1,6 +1,6 @@
 extern crate alloc;
 use crate::{
-    api::datamodels::{TIRunContext, TISuccessStatePayload},
+    api::datamodels::TIRunContext,
     bases::xcom::{BaseXcom, XCOM_RETURN_KEY, XCom, XComError},
     definitions::{Context, DagBag, TaskError, mappedoperator::is_mappable_value},
     execution::{
@@ -12,7 +12,6 @@ use airflow_common::{
     datetime::{TimeProvider, UtcDateTime},
     executors::TaskInstance,
     serialization::serde::{JsonSerialize, JsonValue},
-    utils::TaskInstanceState,
 };
 use alloc::{string::String, vec};
 use log::{debug, error, info};
@@ -93,8 +92,9 @@ impl<R: TaskRuntime> TaskRunner<R> {
             }
             // TODO handle different task errors
             Err(e) => {
-                error!("Task execution failed: {}", e);
-                (ExecutionResultTIState::Failed, Some(e))
+                error!("Task failed with error: {}", e);
+                let state = self.handle_current_task_failed(ti).await?;
+                (state, Some(e))
             }
         };
         // TODO can we mutate ti somehow while context exists?
@@ -127,15 +127,33 @@ impl<R: TaskRuntime> TaskRunner<R> {
     ) -> Result<(), ExecutionError> {
         let end_date = self.time_provider.now();
         // TODO set TI end_date
-        let msg = TISuccessStatePayload {
-            state: TaskInstanceState::Success,
-            end_date,
-            task_outlets: vec![],
-            outlet_events: vec![],
-            rendered_map_index: ti.rendered_map_index.clone(),
-        };
-        self.client.succeed_task(msg).await?;
+        self.client
+            .succeed_task(end_date, vec![], vec![], ti.rendered_map_index.clone())
+            .await?;
         Ok(())
+    }
+
+    async fn handle_current_task_failed(
+        &self,
+        ti: &RuntimeTaskInstance<'_, R>,
+    ) -> Result<ExecutionResultTIState, ExecutionError> {
+        let end_date = self.time_provider.now();
+        // TODO set TI end_date
+        if ti.ti_context_from_server.should_retry {
+            self.client
+                .retry_task(end_date, ti.rendered_map_index.clone())
+                .await?;
+            Ok(ExecutionResultTIState::UpForRetry)
+        } else {
+            self.client
+                .task_state(
+                    ExecutionResultTIState::Failed,
+                    end_date,
+                    ti.rendered_map_index.clone(),
+                )
+                .await?;
+            Ok(ExecutionResultTIState::Failed)
+        }
     }
 
     async fn push_xcom_if_needed(

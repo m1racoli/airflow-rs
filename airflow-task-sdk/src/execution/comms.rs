@@ -1,9 +1,9 @@
 extern crate alloc;
 use crate::{
     api::{ExecutionApiError, datamodels::*},
-    execution::TaskRuntime,
+    execution::{ExecutionResultTIState, TaskRuntime},
 };
-use airflow_common::{serialization::serde::JsonValue, utils::MapIndex};
+use airflow_common::{datetime::UtcDateTime, serialization::serde::JsonValue, utils::MapIndex};
 use alloc::{
     string::{String, ToString},
     vec::Vec,
@@ -23,7 +23,12 @@ pub enum ToTask {
 /// Messages sent from the task to the supervisor.
 #[derive(Debug)]
 pub enum ToSupervisor {
-    SucceedTask(TISuccessStatePayload),
+    SucceedTask {
+        end_date: UtcDateTime,
+        task_outlets: Vec<AssetProfile>,
+        outlet_events: Vec<()>, // TODO outlet events
+        rendered_map_index: Option<String>,
+    },
     GetXCom {
         key: String,
         dag_id: String,
@@ -71,6 +76,15 @@ pub enum ToSupervisor {
         task_id: String,
         map_index: Option<MapIndex>,
     },
+    RetryTask {
+        end_date: UtcDateTime,
+        rendered_map_index: Option<String>,
+    },
+    TaskState {
+        state: ExecutionResultTIState,
+        end_date: UtcDateTime,
+        rendered_map_index: Option<String>,
+    },
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -114,9 +128,21 @@ impl<R: TaskRuntime> SupervisorClient<R> {
 
     pub async fn succeed_task(
         &self,
-        msg: TISuccessStatePayload,
+        end_date: UtcDateTime,
+        task_outlets: Vec<AssetProfile>,
+        outlet_events: Vec<()>, // TODO outlet events
+        rendered_map_index: Option<String>,
     ) -> Result<(), SupervisorCommsError> {
-        match self.comms.send(ToSupervisor::SucceedTask(msg)).await? {
+        match self
+            .comms
+            .send(ToSupervisor::SucceedTask {
+                end_date,
+                task_outlets,
+                outlet_events,
+                rendered_map_index,
+            })
+            .await?
+        {
             ToTask::Empty => Ok(()),
             r => Err(SupervisorCommsError::UnexpectedResponse(r)),
         }
@@ -270,6 +296,44 @@ impl<R: TaskRuntime> SupervisorClient<R> {
                 run_id,
                 task_id,
                 map_index,
+            })
+            .await?
+        {
+            ToTask::Empty => Ok(()),
+            r => Err(SupervisorCommsError::UnexpectedResponse(r)),
+        }
+    }
+
+    pub async fn retry_task(
+        &self,
+        end_date: UtcDateTime,
+        rendered_map_index: Option<String>,
+    ) -> Result<(), SupervisorCommsError> {
+        match self
+            .comms
+            .send(ToSupervisor::RetryTask {
+                end_date,
+                rendered_map_index,
+            })
+            .await?
+        {
+            ToTask::Empty => Ok(()),
+            r => Err(SupervisorCommsError::UnexpectedResponse(r)),
+        }
+    }
+
+    pub async fn task_state(
+        &self,
+        state: ExecutionResultTIState,
+        end_date: UtcDateTime,
+        rendered_map_index: Option<String>,
+    ) -> Result<(), SupervisorCommsError> {
+        match self
+            .comms
+            .send(ToSupervisor::TaskState {
+                state,
+                end_date,
+                rendered_map_index,
             })
             .await?
         {

@@ -168,6 +168,13 @@ pub struct TISuccessStatePayloadBody<'a> {
     pub rendered_map_index: Option<&'a str>,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct TIRetryStatePayloadBody<'a> {
+    pub state: TaskInstanceState,
+    pub end_date: &'a UtcDateTime,
+    pub rendered_map_index: Option<&'a str>,
+}
+
 impl<'a> From<&'a TISuccessStatePayload> for TISuccessStatePayloadBody<'a> {
     fn from(payload: &'a TISuccessStatePayload) -> Self {
         TISuccessStatePayloadBody {

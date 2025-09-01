@@ -12,7 +12,7 @@ use airflow_common::{
     datetime::TimeProvider,
     executors::{ExecuteTask, TaskInstance},
 };
-use alloc::string::ToString;
+use alloc::string::{String, ToString};
 use core::cmp;
 use core::time;
 use log::{debug, error, info, warn};
@@ -97,6 +97,7 @@ struct ActivityTask<'a, C: LocalExecutionApiClient, R: TaskRuntime> {
     result: Option<Result<(), ExecutionError>>,
     runtime: &'a R,
     task_end_time: Option<R::Instant>,
+    rendered_map_index: Option<String>,
 }
 
 impl<'a, C, R> ActivityTask<'a, C, R>
@@ -145,6 +146,7 @@ where
             terminal_state: None,
             result: None,
             task_end_time: None,
+            rendered_map_index: None,
         })
     }
 
@@ -194,16 +196,22 @@ where
 
     async fn handle_message(&mut self, msg: ToSupervisor) -> Result<ToTask, SupervisorCommsError> {
         match msg {
-            ToSupervisor::SucceedTask(payload) => {
+            ToSupervisor::SucceedTask {
+                end_date,
+                task_outlets,
+                outlet_events,
+                rendered_map_index,
+            } => {
                 self.terminal_state = Some(ExecutionResultTIState::Success);
                 self.task_end_time = Some(self.runtime.now());
+                self.rendered_map_index = rendered_map_index;
                 self.client
                     .task_instances_succeed(
                         &self.ti.id(),
-                        &self.runtime.time_provider().now(),
-                        &payload.task_outlets,
-                        &payload.outlet_events,
-                        None,
+                        &end_date,
+                        &task_outlets,
+                        &outlet_events,
+                        self.rendered_map_index.as_deref(),
                     )
                     .await?;
                 Ok(ToTask::Empty)
@@ -313,6 +321,32 @@ where
                     .await?;
                 Ok(ToTask::XComSequenceSlice(response))
             }
+            ToSupervisor::RetryTask {
+                end_date,
+                rendered_map_index,
+            } => {
+                self.terminal_state = Some(ExecutionResultTIState::UpForRetry);
+                self.task_end_time = Some(self.runtime.now());
+                self.rendered_map_index = rendered_map_index;
+                self.client
+                    .task_instances_retry(
+                        &self.ti.id(),
+                        &end_date,
+                        self.rendered_map_index.as_deref(),
+                    )
+                    .await?;
+                Ok(ToTask::Empty)
+            }
+            ToSupervisor::TaskState {
+                state,
+                end_date: _,
+                rendered_map_index,
+            } => {
+                self.terminal_state = Some(state);
+                self.task_end_time = Some(self.runtime.now());
+                self.rendered_map_index = rendered_map_index;
+                Ok(ToTask::Empty)
+            }
         }
     }
 
@@ -410,7 +444,7 @@ where
         match self.final_state().into() {
             Some(state) => {
                 self.client
-                    .task_instances_finish(&id, state, &end, None)
+                    .task_instances_finish(&id, state, &end, self.rendered_map_index.as_deref())
                     .await?;
                 Ok(())
             }
