@@ -13,7 +13,7 @@ use examples::{
     },
 };
 use tokio::signal::unix::{SignalKind, signal};
-use tracing::{debug, error};
+use tracing::{debug, error, level_filters::LevelFilter};
 use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 
 static API_AUTH_JWT_SECRET: &str = "rEVfqc5f8WQDLCJcrKKKtQ==";
@@ -32,7 +32,13 @@ async fn main() {
 
     let task_log = TaskLogLayer::new(send.clone())
         .and_then(TaskInstanceKeyLayer)
-        .with_filter(TaskContextFilter);
+        .with_filter(TaskContextFilter)
+        .with_filter(
+            EnvFilter::builder()
+                .with_default_directive(LevelFilter::INFO.into())
+                .with_env_var("AIRFLOW_TASK_LOG")
+                .from_env_lossy(),
+        );
     // TODO env filter for task log
 
     tracing_subscriber::registry()
