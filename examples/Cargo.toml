@@ -17,6 +17,8 @@ reqwest = { version = "0.12", features = ["json"] }
 serde_json = { version = "1", default-features = false, features = ["alloc"] }
 thiserror = "2"
 tokio = { version = "1", features = ["full"] }
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing = { git = "https://github.com/tokio-rs/tracing.git", branch = "v0.2.x" }
+tracing-subscriber = { git = "https://github.com/tokio-rs/tracing.git", branch = "v0.2.x", features = [
+    "env-filter",
+] }
 whoami = "1"

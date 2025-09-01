@@ -16,7 +16,7 @@ thiserror = { version = "2", default-features = false }
 trait-variant = "0.1"
 
 reqwest = { version = "0.12", default-features = false, features = ["json"], optional = true }
-tracing = { version = "0.1", default-features = false, optional = true }
+tracing = { git = "https://github.com/tokio-rs/tracing.git", branch = "v0.2.x", default-features = false, optional = true }
 
 [dev-dependencies]
 httpmock = "0.8.0-alpha.1"

@@ -26,7 +26,7 @@ async fn main() {
 
     let (send, recv) = tokio::sync::mpsc::unbounded_channel();
 
-    let log = fmt::layer()
+    let log = fmt::subscriber()
         .with_filter(NonTaskContextFilter)
         .with_filter(EnvFilter::from_default_env());
 
