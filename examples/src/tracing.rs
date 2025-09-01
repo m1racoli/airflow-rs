@@ -23,10 +23,12 @@ use tracing_subscriber::registry::SpanRef;
 use tracing_subscriber::subscribe::Context;
 use tracing_subscriber::subscribe::Filter;
 
+/// A Subscriber which extracts the TaskInstanceKey from the span's attributes or parent and
+/// attaches it to the span's extensions.
 #[derive(Debug, Default)]
-pub struct TaskInstanceKeyLayer;
+pub struct TaskInstanceKeySubscriber;
 
-impl<C: Collect + for<'a> LookupSpan<'a>> Subscribe<C> for TaskInstanceKeyLayer {
+impl<C: Collect + for<'a> LookupSpan<'a>> Subscribe<C> for TaskInstanceKeySubscriber {
     fn on_new_span(&self, attrs: &Attributes<'_>, id: &Id, ctx: Context<'_, C>) {
         if let Some(span) = ctx.span(id) {
             let mut visitor = TaskInstanceKeyVisitor::default();
@@ -54,15 +56,17 @@ pub enum LogEvent {
     Exit,
 }
 
+/// A Subscriber which captures log events and sends them via a task log sender if they have
+/// a TaskInstanceKey.
 #[derive(Debug)]
-pub struct TaskLogLayer<T: TimeProvider> {
+pub struct TaskLogSubscriber<T: TimeProvider> {
     send: UnboundedSender<LogEvent>,
     time_provider: T,
 }
 
-impl<T: TimeProvider> TaskLogLayer<T> {
+impl<T: TimeProvider> TaskLogSubscriber<T> {
     pub fn new(send: UnboundedSender<LogEvent>, time_provider: T) -> Self {
-        TaskLogLayer {
+        TaskLogSubscriber {
             send,
             time_provider,
         }
@@ -125,7 +129,7 @@ impl<T: TimeProvider> TaskLogLayer<T> {
 }
 
 impl<C: Collect + for<'a> LookupSpan<'a>, T: TimeProvider + 'static> Subscribe<C>
-    for TaskLogLayer<T>
+    for TaskLogSubscriber<T>
 {
     fn on_event(&self, event: &tracing::Event<'_>, ctx: Context<'_, C>) {
         if let Some(span) = ctx.lookup_current()

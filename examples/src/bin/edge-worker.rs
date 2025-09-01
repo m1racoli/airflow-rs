@@ -9,7 +9,8 @@ use examples::{
     example::get_dag_bag,
     tokio::{TokioIntercom, TokioRuntime},
     tracing::{
-        LogEvent, NonTaskContextFilter, TaskContextFilter, TaskInstanceKeyLayer, TaskLogLayer,
+        LogEvent, NonTaskContextFilter, TaskContextFilter, TaskInstanceKeySubscriber,
+        TaskLogSubscriber,
     },
 };
 use tokio::signal::unix::{SignalKind, signal};
@@ -30,8 +31,8 @@ async fn main() {
         .with_filter(NonTaskContextFilter)
         .with_filter(EnvFilter::from_default_env());
 
-    let task_log = TaskLogLayer::new(send.clone(), StdTimeProvider)
-        .and_then(TaskInstanceKeyLayer)
+    let task_log = TaskLogSubscriber::new(send.clone(), StdTimeProvider)
+        .and_then(TaskInstanceKeySubscriber)
         .with_filter(TaskContextFilter)
         .with_filter(
             EnvFilter::builder()
