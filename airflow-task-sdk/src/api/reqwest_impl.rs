@@ -360,16 +360,10 @@ impl ExecutionApiClient for ReqwestExecutionApiClient {
             .await?;
         match self.handle_response(response).await {
             Ok(response) => Ok(response.json().await?),
-            Err(ExecutionApiError::NotFound(detail)) => {
-                error!(
-                    "XCom not found. dag_id: {}, run_id: {}, task_id: {}, key: {}, map_index: {:?}, detail: {}",
-                    dag_id, run_id, task_id, key, map_index, detail
-                );
-                Ok(XComResponse {
-                    key: key.to_string(),
-                    value: JsonValue::Null,
-                })
-            }
+            Err(ExecutionApiError::NotFound(_)) => Ok(XComResponse {
+                key: key.to_string(),
+                value: JsonValue::Null,
+            }),
             Err(err) => Err(err),
         }
     }
