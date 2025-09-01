@@ -1,7 +1,7 @@
 extern crate alloc;
 use crate::{
     api::datamodels::TIRunContext,
-    bases::xcom::XComRequest,
+    bases::xcom::{BaseXcom, XCom, XComError, XComRequest},
     definitions::{Context, DagBag, Task},
     execution::{ExecutionError, StartupDetails, SupervisorClient, TaskRuntime},
 };
@@ -9,6 +9,7 @@ use airflow_common::{
     datetime::UtcDateTime,
     executors::UniqueTaskInstanceId,
     models::TaskInstanceLike,
+    serialization::serde::JsonSerialize,
     utils::{MapIndex, TaskInstanceState},
 };
 use alloc::string::{String, ToString};
@@ -131,5 +132,24 @@ impl<'t, R: TaskRuntime> RuntimeTaskInstance<'t, R> {
 
     pub fn xcom(&'t self) -> XComRequest<'t, R> {
         XComRequest::new(self)
+    }
+
+    /// Make an XCom available for tasks to pull.
+    pub async fn xcom_push<T: JsonSerialize + Sync>(
+        &'t self,
+        key: &str,
+        value: &T,
+    ) -> Result<(), XComError<BaseXcom>> {
+        XCom::<BaseXcom>::set(
+            self.client,
+            self.dag_id(),
+            self.run_id(),
+            self.task_id(),
+            self.map_index(),
+            key,
+            value,
+            None,
+        )
+        .await
     }
 }

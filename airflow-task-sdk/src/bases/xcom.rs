@@ -265,7 +265,7 @@ impl<X: XComBackend> XCom<X> {
 }
 
 pub struct XComRequest<'t, R: TaskRuntime> {
-    client: &'t SupervisorClient<R>,
+    ti: &'t RuntimeTaskInstance<'t, R>,
     dag_id: &'t str,
     run_id: &'t str,
     task_id: &'t str,
@@ -277,7 +277,7 @@ pub struct XComRequest<'t, R: TaskRuntime> {
 impl<'t, R: TaskRuntime> XComRequest<'t, R> {
     pub(crate) fn new(ti: &'t RuntimeTaskInstance<'t, R>) -> Self {
         Self {
-            client: ti.client,
+            ti,
             dag_id: ti.dag_id(),
             run_id: ti.run_id(),
             task_id: ti.task_id(),
@@ -317,7 +317,7 @@ impl<'t, R: TaskRuntime> XComRequest<'t, R> {
         match self.map_index {
             Some(map_index) => {
                 let result = XCom::<BaseXcom>::get_one(
-                    self.client,
+                    self.ti.client,
                     self.dag_id,
                     self.run_id,
                     self.task_id,
