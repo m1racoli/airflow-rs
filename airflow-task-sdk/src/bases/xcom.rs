@@ -4,7 +4,7 @@ use crate::{
     execution::{RuntimeTaskInstance, SupervisorClient, SupervisorCommsError, TaskRuntime},
 };
 use airflow_common::{
-    models::TaskInstanceKey,
+    models::TaskInstanceLike,
     serialization::serde::{
         JsonDeserialize, JsonSerdeError, JsonSerialize, JsonValue, deserialize, serialize,
     },
@@ -137,18 +137,21 @@ impl<X: XComBackend> XCom<X> {
         Ok(())
     }
 
-    /// Retrieve an XCom value for a task instance.
+    /// Retrieve an XCom value for a task instance like.
+    ///
+    /// This is an alternative to [XCom::get_one] for convenience purposes
+    /// if there's already a [TaskInstanceLike] available.
     pub async fn get_value<T: JsonDeserialize + Send, R: TaskRuntime>(
         client: &SupervisorClient<R>,
-        ti_key: &TaskInstanceKey,
+        ti: &impl TaskInstanceLike,
         key: &str,
     ) -> Result<T, XComError<X>> {
         XCom::<X>::get_one(
             client,
-            ti_key.dag_id(),
-            ti_key.run_id(),
-            ti_key.task_id(),
-            ti_key.map_index(),
+            ti.dag_id(),
+            ti.run_id(),
+            ti.task_id(),
+            ti.map_index(),
             key,
             None,
         )
@@ -178,6 +181,9 @@ impl<X: XComBackend> XCom<X> {
     }
 
     /// Retrieve an XCom value.
+    ///
+    /// See also: [XCom::get_value] is a convenience function if you already
+    /// have a [TaskInstanceLike] available.
     pub async fn get_one<T: JsonDeserialize + Send, R: TaskRuntime>(
         client: &SupervisorClient<R>,
         dag_id: &str,

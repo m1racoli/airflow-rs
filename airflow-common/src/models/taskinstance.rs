@@ -89,3 +89,25 @@ pub trait TaskInstanceLike {
         )
     }
 }
+
+impl TaskInstanceLike for TaskInstanceKey {
+    fn dag_id(&self) -> &str {
+        &self.dag_id
+    }
+
+    fn task_id(&self) -> &str {
+        &self.task_id
+    }
+
+    fn run_id(&self) -> &str {
+        &self.run_id
+    }
+
+    fn try_number(&self) -> usize {
+        self.try_number
+    }
+
+    fn map_index(&self) -> MapIndex {
+        self.map_index
+    }
+}
