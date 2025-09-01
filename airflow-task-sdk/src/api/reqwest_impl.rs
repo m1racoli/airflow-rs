@@ -1,3 +1,4 @@
+use crate::api::{ExecutionApiClient, ExecutionApiClientFactory, ExecutionApiError, datamodels::*};
 use airflow_common::{
     datetime::UtcDateTime,
     executors::UniqueTaskInstanceId,
@@ -7,8 +8,6 @@ use airflow_common::{
 use log::{debug, error};
 use reqwest::{Method, Response, StatusCode, header::HeaderMap};
 use serde::Serialize;
-
-use crate::api::{ExecutionApiClient, ExecutionApiClientFactory, ExecutionApiError, datamodels::*};
 
 #[derive(Debug, Clone, Default)]
 pub struct ReqwestExecutionApiClientFactory;
@@ -399,6 +398,54 @@ impl ExecutionApiClient for ReqwestExecutionApiClient {
             .await?;
         self.handle_response(response).await?;
         Ok(())
+    }
+
+    async fn xcoms_get_sequence_item(
+        &mut self,
+        dag_id: &str,
+        run_id: &str,
+        task_id: &str,
+        key: &str,
+        offset: usize,
+    ) -> Result<JsonValue, ExecutionApiError<Self::Error>> {
+        let path = format!("xcoms/{dag_id}/{run_id}/{task_id}/{key}/item/{offset}");
+        let response = self.request(Method::GET, &path)?.send().await?;
+        let response = self.handle_response(response).await?;
+        Ok(response.json().await?)
+    }
+
+    async fn xcoms_get_sequence_slice(
+        &mut self,
+        dag_id: &str,
+        run_id: &str,
+        task_id: &str,
+        key: &str,
+        start: Option<usize>,
+        stop: Option<usize>,
+        step: Option<usize>,
+        include_prior_dates: Option<bool>,
+    ) -> Result<Vec<JsonValue>, ExecutionApiError<Self::Error>> {
+        let path = format!("xcoms/{dag_id}/{run_id}/{task_id}/{key}/slice");
+        let mut query = Vec::new();
+        if let Some(start) = start {
+            query.push(("start", start.to_string()));
+        }
+        if let Some(stop) = stop {
+            query.push(("stop", stop.to_string()));
+        }
+        if let Some(step) = step {
+            query.push(("step", step.to_string()));
+        }
+        if let Some(include_prior_dates) = include_prior_dates {
+            query.push(("include_prior_dates", include_prior_dates.to_string()));
+        }
+        let response = self
+            .request(Method::GET, &path)?
+            .query(&query)
+            .send()
+            .await?;
+        let response = self.handle_response(response).await?;
+        Ok(response.json().await?)
     }
 }
 

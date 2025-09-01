@@ -1,14 +1,4 @@
 extern crate alloc;
-use alloc::string::ToString;
-use core::cmp;
-use core::time;
-
-use airflow_common::{
-    datetime::TimeProvider,
-    executors::{ExecuteTask, TaskInstance},
-};
-use log::{debug, error, info, warn};
-
 use crate::{
     api::{ExecutionApiError, LocalExecutionApiClient, LocalExecutionApiClientFactory},
     definitions::DagBag,
@@ -18,6 +8,14 @@ use crate::{
         runtime::{ServiceResult, TaskHandle},
     },
 };
+use airflow_common::{
+    datetime::TimeProvider,
+    executors::{ExecuteTask, TaskInstance},
+};
+use alloc::string::ToString;
+use core::cmp;
+use core::time;
+use log::{debug, error, info, warn};
 
 // TODO conf
 static HEARTBEAT_TIMEOUT: u64 = 300; // seconds
@@ -276,6 +274,44 @@ where
                     .xcoms_delete(&dag_id, &run_id, &task_id, &key, map_index)
                     .await?;
                 Ok(ToTask::Empty)
+            }
+            ToSupervisor::GetXComSequenceItem {
+                key,
+                dag_id,
+                run_id,
+                task_id,
+                offset,
+            } => {
+                let response = self
+                    .client
+                    .xcoms_get_sequence_item(&dag_id, &run_id, &task_id, &key, offset)
+                    .await?;
+                Ok(ToTask::XComSequenceIndex(response))
+            }
+            ToSupervisor::GetXComSequenceSlice {
+                key,
+                dag_id,
+                run_id,
+                task_id,
+                start,
+                stop,
+                step,
+                include_prior_dates,
+            } => {
+                let response = self
+                    .client
+                    .xcoms_get_sequence_slice(
+                        &dag_id,
+                        &run_id,
+                        &task_id,
+                        &key,
+                        start,
+                        stop,
+                        step,
+                        include_prior_dates,
+                    )
+                    .await?;
+                Ok(ToTask::XComSequenceSlice(response))
             }
         }
     }

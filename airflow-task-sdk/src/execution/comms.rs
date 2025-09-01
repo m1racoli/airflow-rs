@@ -1,13 +1,14 @@
 extern crate alloc;
-use alloc::string::String;
-use alloc::string::ToString;
+use crate::{
+    api::{ExecutionApiError, datamodels::*},
+    execution::TaskRuntime,
+};
+use airflow_common::{serialization::serde::JsonValue, utils::MapIndex};
+use alloc::{
+    string::{String, ToString},
+    vec::Vec,
+};
 use core::error;
-
-use airflow_common::serialization::serde::JsonValue;
-use airflow_common::utils::MapIndex;
-
-use crate::api::{ExecutionApiError, datamodels::*};
-use crate::execution::TaskRuntime;
 
 /// Messages sent from the supervisor to the task.
 #[derive(Debug)]
@@ -15,6 +16,8 @@ pub enum ToTask {
     Empty,
     XCom(XComResponse),
     XComCount(usize),
+    XComSequenceIndex(JsonValue),
+    XComSequenceSlice(Vec<JsonValue>),
 }
 
 /// Messages sent from the task to the supervisor.
@@ -35,8 +38,23 @@ pub enum ToSupervisor {
         run_id: String,
         task_id: String,
     },
-    // GetXComSequenceItem
-    // GetXComSequenceSlice
+    GetXComSequenceItem {
+        key: String,
+        dag_id: String,
+        run_id: String,
+        task_id: String,
+        offset: usize,
+    },
+    GetXComSequenceSlice {
+        key: String,
+        dag_id: String,
+        run_id: String,
+        task_id: String,
+        start: Option<usize>,
+        stop: Option<usize>,
+        step: Option<usize>,
+        include_prior_dates: Option<bool>,
+    },
     SetXCom {
         key: String,
         value: JsonValue,
@@ -148,6 +166,61 @@ impl<R: TaskRuntime> SupervisorClient<R> {
             .await?
         {
             ToTask::XComCount(r) => Ok(r),
+            r => Err(SupervisorCommsError::UnexpectedResponse(r)),
+        }
+    }
+
+    pub async fn get_xcom_sequence_item(
+        &self,
+        key: String,
+        dag_id: String,
+        run_id: String,
+        task_id: String,
+        offset: usize,
+    ) -> Result<JsonValue, SupervisorCommsError> {
+        match self
+            .comms
+            .send(ToSupervisor::GetXComSequenceItem {
+                key,
+                dag_id,
+                run_id,
+                task_id,
+                offset,
+            })
+            .await?
+        {
+            ToTask::XComSequenceIndex(r) => Ok(r),
+            r => Err(SupervisorCommsError::UnexpectedResponse(r)),
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub async fn get_xcom_sequence_slice(
+        &self,
+        key: String,
+        dag_id: String,
+        run_id: String,
+        task_id: String,
+        start: Option<usize>,
+        stop: Option<usize>,
+        step: Option<usize>,
+        include_prior_dates: Option<bool>,
+    ) -> Result<Vec<JsonValue>, SupervisorCommsError> {
+        match self
+            .comms
+            .send(ToSupervisor::GetXComSequenceSlice {
+                key,
+                dag_id,
+                run_id,
+                task_id,
+                start,
+                stop,
+                step,
+                include_prior_dates,
+            })
+            .await?
+        {
+            ToTask::XComSequenceSlice(r) => Ok(r),
             r => Err(SupervisorCommsError::UnexpectedResponse(r)),
         }
     }

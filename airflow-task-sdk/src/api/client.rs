@@ -1,17 +1,14 @@
 extern crate alloc;
-use alloc::string::String;
-use alloc::vec::Vec;
-use core::error;
-
+use crate::api::datamodels::*;
 use airflow_common::{
     datetime::UtcDateTime,
     executors::UniqueTaskInstanceId,
     serialization::serde::JsonValue,
     utils::{MapIndex, TaskInstanceState, TerminalTIStateNonSuccess},
 };
+use alloc::{string::String, vec::Vec};
+use core::error;
 use serde::Serialize;
-
-use crate::api::datamodels::*;
 
 /// An error which can occur when interacting with the TaskInstance API.
 #[derive(thiserror::Error, Debug)]
@@ -201,26 +198,25 @@ pub trait LocalExecutionApiClient {
         map_index: Option<MapIndex>,
     ) -> Result<(), ExecutionApiError<Self::Error>>;
 
-    // TODO
-    // async fn xcoms_get_sequence_item(
-    //     &mut self,
-    //     dag_id: &str,
-    //     run_id: &str,
-    //     task_id: &str,
-    //     key: &str,
-    //     offset: usize,
-    // ) -> Result<XComSequenceIndexResponse, ExecutionApiError<Self::Error>>;
+    async fn xcoms_get_sequence_item(
+        &mut self,
+        dag_id: &str,
+        run_id: &str,
+        task_id: &str,
+        key: &str,
+        offset: usize,
+    ) -> Result<JsonValue, ExecutionApiError<Self::Error>>;
 
-    // TODO
-    // async fn xcoms_get_sequence_slice(
-    //     &mut self,
-    //     dag_id: &str,
-    //     run_id: &str,
-    //     task_id: &str,
-    //     key: &str,
-    //     start: Option<usize>,
-    //     stop: Option<usize>,
-    //     step: Option<usize>,
-    //     include_prior_dates: Option<bool>,
-    // ) -> Result<XComSequenceSliceResponse, ExecutionApiError<Self::Error>>;
+    #[allow(clippy::too_many_arguments)]
+    async fn xcoms_get_sequence_slice(
+        &mut self,
+        dag_id: &str,
+        run_id: &str,
+        task_id: &str,
+        key: &str,
+        start: Option<usize>,
+        stop: Option<usize>,
+        step: Option<usize>,
+        include_prior_dates: Option<bool>,
+    ) -> Result<Vec<JsonValue>, ExecutionApiError<Self::Error>>;
 }

@@ -4,12 +4,13 @@ use crate::{
     execution::{RuntimeTaskInstance, SupervisorClient, SupervisorCommsError, TaskRuntime},
 };
 use airflow_common::{
+    models::TaskInstanceKey,
     serialization::serde::{
         JsonDeserialize, JsonSerdeError, JsonSerialize, JsonValue, deserialize, serialize,
     },
     utils::MapIndex,
 };
-use alloc::string::ToString;
+use alloc::{string::ToString, vec::Vec};
 use core::{error::Error, marker::PhantomData};
 use log::info;
 
@@ -82,6 +83,7 @@ pub enum XComError<X: XComBackend> {
 pub struct XCom<X: XComBackend>(PhantomData<X>);
 
 impl<X: XComBackend> XCom<X> {
+    /// Store an XCom value.
     #[allow(clippy::too_many_arguments)]
     pub async fn set<T: JsonSerialize + Sync, R: TaskRuntime>(
         client: &SupervisorClient<R>,
@@ -111,6 +113,71 @@ impl<X: XComBackend> XCom<X> {
         Ok(())
     }
 
+    /// Store an XCom value directly in the metadata database.
+    pub(crate) async fn _set_xcom_in_db<R: TaskRuntime>(
+        client: &SupervisorClient<R>,
+        dag_id: &str,
+        run_id: &str,
+        task_id: &str,
+        map_index: MapIndex,
+        key: &str,
+        value: &JsonValue,
+    ) -> Result<(), XComError<X>> {
+        client
+            .set_xcom(
+                key.to_string(),
+                value.clone(),
+                dag_id.to_string(),
+                run_id.to_string(),
+                task_id.to_string(),
+                Some(map_index),
+                None,
+            )
+            .await?;
+        Ok(())
+    }
+
+    /// Retrieve an XCom value for a task instance.
+    pub async fn get_value<T: JsonDeserialize + Send, R: TaskRuntime>(
+        client: &SupervisorClient<R>,
+        ti_key: &TaskInstanceKey,
+        key: &str,
+    ) -> Result<T, XComError<X>> {
+        XCom::<X>::get_one(
+            client,
+            ti_key.dag_id(),
+            ti_key.run_id(),
+            ti_key.task_id(),
+            ti_key.map_index(),
+            key,
+            None,
+        )
+        .await
+    }
+
+    /// Retrieve an XCom value directly from the metadata database.
+    pub(crate) async fn get_xcom_db_ref<R: TaskRuntime>(
+        client: &SupervisorClient<R>,
+        dag_id: &str,
+        run_id: &str,
+        task_id: &str,
+        map_index: MapIndex,
+        key: &str,
+    ) -> Result<XComResponse, XComError<X>> {
+        let response = client
+            .get_xcom(
+                key.to_string(),
+                dag_id.to_string(),
+                run_id.to_string(),
+                task_id.to_string(),
+                Some(map_index),
+                None,
+            )
+            .await?;
+        Ok(response)
+    }
+
+    /// Retrieve an XCom value.
     pub async fn get_one<T: JsonDeserialize + Send, R: TaskRuntime>(
         client: &SupervisorClient<R>,
         dag_id: &str,
@@ -143,27 +210,35 @@ impl<X: XComBackend> XCom<X> {
         Ok(result)
     }
 
-    pub(crate) async fn get_xcom_db_ref<R: TaskRuntime>(
+    /// Retrieve all XCom values for a task, typically from all map indexes.
+    pub async fn get_all<T: JsonDeserialize + Send, R: TaskRuntime>(
         client: &SupervisorClient<R>,
         dag_id: &str,
         run_id: &str,
         task_id: &str,
-        map_index: MapIndex,
         key: &str,
-    ) -> Result<XComResponse, XComError<X>> {
+        include_prior_dates: Option<bool>,
+    ) -> Result<Vec<T>, XComError<X>> {
         let response = client
-            .get_xcom(
+            .get_xcom_sequence_slice(
                 key.to_string(),
                 dag_id.to_string(),
                 run_id.to_string(),
                 task_id.to_string(),
-                Some(map_index),
                 None,
+                None,
+                None,
+                include_prior_dates,
             )
             .await?;
-        Ok(response)
+        let result = response
+            .iter()
+            .map(|v| deserialize(v).map_err(XComError::Serde))
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(result)
     }
 
+    /// Delete an Xcom entry, for custom xcom backends, it gets the path associated with the data on the backend and purges it.
     pub async fn delete<R: TaskRuntime>(
         client: &SupervisorClient<R>,
         dag_id: &str,
