@@ -1,7 +1,7 @@
 extern crate alloc;
 use crate::{
     api::datamodels::TIRunContext,
-    bases::xcom::{BaseXcom, XCom, XComError, XComRequest},
+    bases::xcom::{BaseXcom, XCom, XComError, XComPull},
     definitions::{Context, DagBag, Task},
     execution::{ExecutionError, StartupDetails, SupervisorClient, TaskRuntime},
 };
@@ -130,8 +130,9 @@ impl<'t, R: TaskRuntime> RuntimeTaskInstance<'t, R> {
         &self.id
     }
 
-    pub fn xcom(&'t self) -> XComRequest<'t, R> {
-        XComRequest::new(self)
+    /// Create an XCom pull builder to pull an XCom value.
+    pub fn xcom_pull(&'t self) -> XComPull<'t, R> {
+        XComPull::new(self)
     }
 
     /// Make an XCom available for tasks to pull.

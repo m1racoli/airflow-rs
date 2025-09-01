@@ -270,73 +270,121 @@ impl<X: XComBackend> XCom<X> {
     }
 }
 
-pub struct XComRequest<'t, R: TaskRuntime> {
+/// Builder for pulling XCom values.
+pub struct XComPull<'t, R: TaskRuntime, M = ()> {
     ti: &'t RuntimeTaskInstance<'t, R>,
     dag_id: &'t str,
     run_id: &'t str,
     task_id: &'t str,
-    map_index: Option<MapIndex>,
+    map_index: M,
     key: &'t str,
     include_prior_dates: Option<bool>,
 }
 
-impl<'t, R: TaskRuntime> XComRequest<'t, R> {
+// map_index not set
+impl<'t, R: TaskRuntime> XComPull<'t, R> {
     pub(crate) fn new(ti: &'t RuntimeTaskInstance<'t, R>) -> Self {
         Self {
             ti,
             dag_id: ti.dag_id(),
             run_id: ti.run_id(),
             task_id: ti.task_id(),
-            map_index: Some(MapIndex::none()), // for now don't handle mapped tasks
+            map_index: (),
             key: XCOM_RETURN_KEY,
             include_prior_dates: None,
         }
     }
 
+    /// Set the map index for the XCom pull.
+    pub fn map_index(self, map_index: MapIndex) -> XComPull<'t, R, MapIndex> {
+        XComPull {
+            ti: self.ti,
+            dag_id: self.dag_id,
+            run_id: self.run_id,
+            task_id: self.task_id,
+            map_index,
+            key: self.key,
+            include_prior_dates: self.include_prior_dates,
+        }
+    }
+
+    /// Retrieve a single XCom value for a non-mapped task (i.e. `map_index = -1`).
+    pub async fn one<T: JsonDeserialize + Send>(self) -> Result<T, XComError<BaseXcom>> {
+        let result = XCom::<BaseXcom>::get_one(
+            self.ti.client,
+            self.dag_id,
+            self.run_id,
+            self.task_id,
+            MapIndex::none(),
+            self.key,
+            self.include_prior_dates,
+        )
+        .await?;
+        Ok(result)
+    }
+
+    /// Retrieve all XCom values for a task, i.e. from all map indexes for mapped tasks.
+    pub async fn all<T: JsonDeserialize + Send>(self) -> Result<Vec<T>, XComError<BaseXcom>> {
+        let result = XCom::<BaseXcom>::get_all(
+            self.ti.client,
+            self.dag_id,
+            self.run_id,
+            self.task_id,
+            self.key,
+            self.include_prior_dates,
+        )
+        .await?;
+        Ok(result)
+    }
+}
+
+// map_index set
+impl<'t, R: TaskRuntime> XComPull<'t, R, MapIndex> {
+    /// Retrieve a single XCom value for a mapped task (i.e. `map_index` is set to non-negative value).
+    pub async fn one<T: JsonDeserialize + Send>(self) -> Result<T, XComError<BaseXcom>> {
+        let result = XCom::<BaseXcom>::get_one(
+            self.ti.client,
+            self.dag_id,
+            self.run_id,
+            self.task_id,
+            self.map_index,
+            self.key,
+            self.include_prior_dates,
+        )
+        .await?;
+        Ok(result)
+    }
+}
+
+// any map_index setting
+impl<'t, R: TaskRuntime, M> XComPull<'t, R, M> {
+    /// Set the DAG ID for the XCom pull.
     pub fn dag_id(mut self, dag_id: &'t str) -> Self {
         self.dag_id = dag_id;
         self
     }
 
+    /// Set the run ID for the XCom pull.
     pub fn run_id(mut self, run_id: &'t str) -> Self {
         self.run_id = run_id;
         self
     }
 
+    /// Set the task ID for the XCom pull.
     pub fn task_id(mut self, task_id: &'t str) -> Self {
         self.task_id = task_id;
         self
     }
 
+    /// Set the key for the XCom pull.
     pub fn key(mut self, key: &'t str) -> Self {
         self.key = key;
         self
     }
 
+    /// Set the include prior dates flag for the XCom pull.
     pub fn include_prior_dates(mut self, include_prior_dates: bool) -> Self {
         self.include_prior_dates = Some(include_prior_dates);
         self
-    }
-
-    // TODO handle multiple task ids and/or multiple map indices (phantom data?)
-    pub async fn pull<T: JsonDeserialize + Send>(self) -> Result<T, XComError<BaseXcom>> {
-        match self.map_index {
-            Some(map_index) => {
-                let result = XCom::<BaseXcom>::get_one(
-                    self.ti.client,
-                    self.dag_id,
-                    self.run_id,
-                    self.task_id,
-                    map_index,
-                    self.key,
-                    self.include_prior_dates,
-                )
-                .await?;
-                Ok(result)
-            }
-            None => {
-                todo!("");
-            }
-        }
     }
 }
