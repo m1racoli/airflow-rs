@@ -10,6 +10,7 @@ rust-version.workspace = true
 airflow-common = { path = "../airflow-common", default-features = false }
 cfg-if = "1"
 log = { version = "0.4" }
+once_cell = { version = "1", default-features = false }
 serde = { version = "1", default-features = false, features = ["derive", "alloc"] }
 thiserror = { version = "2", default-features = false }
 trait-variant = "0.1"
@@ -23,7 +24,8 @@ serde_json = { version = "1", default-features = false, features = ["alloc"] }
 tokio = { version = "1", features = ["macros"] }
 
 [features]
+critical-section = ["once_cell/critical-section"]
 default = ["reqwest", "std", "tracing"]
 reqwest = ["dep:reqwest"]
-std = ["airflow-common/std", "serde/std", "serde_json/std", "thiserror/std", "tracing?/std"]
+std = ["airflow-common/std", "once_cell/std", "serde/std", "serde_json/std", "thiserror/std", "tracing?/std"]
 tracing = ["dep:tracing"]

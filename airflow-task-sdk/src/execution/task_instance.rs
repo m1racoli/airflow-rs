@@ -15,6 +15,7 @@ use airflow_common::{
 use alloc::string::{String, ToString};
 use core::fmt::Display;
 use log::error;
+use once_cell::sync::OnceCell;
 
 pub struct RuntimeTaskInstance<'t, R: TaskRuntime> {
     id: UniqueTaskInstanceId,
@@ -23,10 +24,14 @@ pub struct RuntimeTaskInstance<'t, R: TaskRuntime> {
     run_id: String,
     try_number: usize,
     map_index: MapIndex,
+    start_date: UtcDateTime,
+
+    // to be written only once
+    state: OnceCell<TaskInstanceState>,
+    end_date: OnceCell<UtcDateTime>,
 
     pub(crate) max_tries: usize,
-    pub(crate) start_date: UtcDateTime,
-    pub(crate) state: TaskInstanceState,
+
     pub(crate) is_mapped: bool,
     pub(crate) rendered_map_index: Option<String>,
     pub(crate) task: &'t Task<R>,
@@ -90,10 +95,12 @@ impl<'t, R: TaskRuntime> RuntimeTaskInstance<'t, R> {
             run_id: details.ti.run_id().to_string(),
             try_number: details.ti.try_number(),
             map_index: details.ti.map_index(),
+            start_date: details.start_date,
+
+            state: OnceCell::new(),
+            end_date: OnceCell::new(),
 
             max_tries,
-            start_date: details.start_date,
-            state: TaskInstanceState::Running,
             is_mapped: false,
             rendered_map_index: None,
             task,
@@ -128,6 +135,48 @@ impl<'t, R: TaskRuntime> RuntimeTaskInstance<'t, R> {
 
     pub fn id(&self) -> &UniqueTaskInstanceId {
         &self.id
+    }
+
+    /// Get the current state of the task instance.
+    pub fn state(&self) -> TaskInstanceState {
+        match self.state.get() {
+            Some(state) => *state,
+            None => TaskInstanceState::Running,
+        }
+    }
+
+    pub(super) fn set_state(&self, state: TaskInstanceState) {
+        match self.state.set(state) {
+            Ok(()) => {}
+            Err(_) => {
+                error!(
+                    "Unable to set state to {}, state already set {:?}",
+                    state,
+                    self.state.get(),
+                );
+            }
+        }
+    }
+
+    pub fn start_date(&self) -> UtcDateTime {
+        self.start_date
+    }
+
+    pub fn end_date(&self) -> Option<UtcDateTime> {
+        self.end_date.get().copied()
+    }
+
+    pub(super) fn set_end_date(&self, end_date: UtcDateTime) {
+        match self.end_date.set(end_date) {
+            Ok(()) => {}
+            Err(_) => {
+                error!(
+                    "Unable to set end date to {}, end date already set {:?}",
+                    end_date,
+                    self.end_date.get(),
+                );
+            }
+        }
     }
 
     /// Create an XCom pull builder to pull an XCom value.

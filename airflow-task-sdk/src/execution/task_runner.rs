@@ -105,8 +105,7 @@ impl<R: TaskRuntime> TaskRunner<R> {
                 (state, Some(e))
             }
         };
-        // TODO can we mutate ti somehow while context exists?
-        // ti.state = state.into();
+        ti.set_state(state.into());
         Ok((state, error))
     }
 
@@ -134,7 +133,7 @@ impl<R: TaskRuntime> TaskRunner<R> {
         _context: &Context<'_, R>,
     ) -> Result<(), ExecutionError> {
         let end_date = self.time_provider.now();
-        // TODO set TI end_date
+        ti.set_end_date(end_date);
         self.client
             .succeed_task(end_date, vec![], vec![], ti.rendered_map_index.clone())
             .await?;
@@ -146,7 +145,7 @@ impl<R: TaskRuntime> TaskRunner<R> {
         ti: &RuntimeTaskInstance<'_, R>,
     ) -> Result<ExecutionResultTIState, ExecutionError> {
         let end_date = self.time_provider.now();
-        // TODO set TI end_date
+        ti.set_end_date(end_date);
         if ti.ti_context_from_server.should_retry {
             self.client
                 .retry_task(end_date, ti.rendered_map_index.clone())
