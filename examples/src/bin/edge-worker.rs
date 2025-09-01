@@ -30,7 +30,7 @@ async fn main() {
         .with_filter(NonTaskContextFilter)
         .with_filter(EnvFilter::from_default_env());
 
-    let task_log = TaskLogLayer::new(send.clone())
+    let task_log = TaskLogLayer::new(send.clone(), StdTimeProvider)
         .and_then(TaskInstanceKeyLayer)
         .with_filter(TaskContextFilter)
         .with_filter(

@@ -1,4 +1,3 @@
-use airflow_common::datetime::StdTimeProvider;
 use airflow_common::datetime::TimeProvider;
 use airflow_common::datetime::UtcDateTime;
 use airflow_common::models::TaskInstanceKey;
@@ -56,14 +55,13 @@ pub enum LogEvent {
 }
 
 #[derive(Debug)]
-pub struct TaskLogLayer {
+pub struct TaskLogLayer<T: TimeProvider> {
     send: UnboundedSender<LogEvent>,
-    time_provider: StdTimeProvider,
+    time_provider: T,
 }
 
-impl TaskLogLayer {
-    pub fn new(send: UnboundedSender<LogEvent>) -> Self {
-        let time_provider = StdTimeProvider;
+impl<T: TimeProvider> TaskLogLayer<T> {
+    pub fn new(send: UnboundedSender<LogEvent>, time_provider: T) -> Self {
         TaskLogLayer {
             send,
             time_provider,
@@ -126,7 +124,9 @@ impl TaskLogLayer {
     }
 }
 
-impl<C: Collect + for<'a> LookupSpan<'a>> Subscribe<C> for TaskLogLayer {
+impl<C: Collect + for<'a> LookupSpan<'a>, T: TimeProvider + 'static> Subscribe<C>
+    for TaskLogLayer<T>
+{
     fn on_event(&self, event: &tracing::Event<'_>, ctx: Context<'_, C>) {
         if let Some(span) = ctx.lookup_current()
             && let Some(key) = span.extensions().get::<TaskInstanceKey>()
