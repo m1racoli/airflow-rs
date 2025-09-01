@@ -195,11 +195,23 @@ impl ExecutionApiClient for ReqwestExecutionApiClient {
 
     async fn task_instances_reschedule(
         &mut self,
-        _id: &UniqueTaskInstanceId,
-        _reschedule_date: &UtcDateTime,
-        _end_date: &UtcDateTime,
+        id: &UniqueTaskInstanceId,
+        reschedule_date: &UtcDateTime,
+        end_date: &UtcDateTime,
     ) -> Result<(), ExecutionApiError<Self::Error>> {
-        todo!()
+        let path = format!("task-instances/{id}/state");
+        let body = TIRescheduleStatePayloadBody {
+            state: TaskInstanceState::UpForReschedule,
+            reschedule_date,
+            end_date,
+        };
+        let response = self
+            .request(Method::PATCH, &path)?
+            .json(&body)
+            .send()
+            .await?;
+        self.handle_response(response).await?;
+        Ok(())
     }
 
     async fn task_instances_heartbeat(

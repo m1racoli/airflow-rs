@@ -85,6 +85,10 @@ pub enum ToSupervisor {
         end_date: UtcDateTime,
         rendered_map_index: Option<String>,
     },
+    RescheduleTask {
+        reschedule_date: UtcDateTime,
+        end_date: UtcDateTime,
+    },
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -334,6 +338,24 @@ impl<R: TaskRuntime> SupervisorClient<R> {
                 state,
                 end_date,
                 rendered_map_index,
+            })
+            .await?
+        {
+            ToTask::Empty => Ok(()),
+            r => Err(SupervisorCommsError::UnexpectedResponse(r)),
+        }
+    }
+
+    pub async fn reschedule_task(
+        &self,
+        reschedule_date: UtcDateTime,
+        end_date: UtcDateTime,
+    ) -> Result<(), SupervisorCommsError> {
+        match self
+            .comms
+            .send(ToSupervisor::RescheduleTask {
+                reschedule_date,
+                end_date,
             })
             .await?
         {

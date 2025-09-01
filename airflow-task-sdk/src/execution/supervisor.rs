@@ -347,6 +347,16 @@ where
                 self.rendered_map_index = rendered_map_index;
                 Ok(ToTask::Empty)
             }
+            ToSupervisor::RescheduleTask {
+                reschedule_date,
+                end_date,
+            } => {
+                self.terminal_state = Some(ExecutionResultTIState::UpForReschedule);
+                self.client
+                    .task_instances_reschedule(&self.ti.id(), &reschedule_date, &end_date)
+                    .await?;
+                Ok(ToTask::Empty)
+            }
         }
     }
 

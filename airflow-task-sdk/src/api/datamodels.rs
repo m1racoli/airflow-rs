@@ -175,6 +175,13 @@ pub struct TIRetryStatePayloadBody<'a> {
     pub rendered_map_index: Option<&'a str>,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct TIRescheduleStatePayloadBody<'a> {
+    pub state: TaskInstanceState,
+    pub reschedule_date: &'a UtcDateTime,
+    pub end_date: &'a UtcDateTime,
+}
+
 impl<'a> From<&'a TISuccessStatePayload> for TISuccessStatePayloadBody<'a> {
     fn from(payload: &'a TISuccessStatePayload) -> Self {
         TISuccessStatePayloadBody {

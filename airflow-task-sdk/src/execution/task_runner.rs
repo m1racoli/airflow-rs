@@ -90,6 +90,14 @@ impl<R: TaskRuntime> TaskRunner<R> {
                 self.handle_current_task_success(ti, context).await?;
                 (ExecutionResultTIState::Success, None)
             }
+            Err(TaskError::Reschedule(reschedule_date)) => {
+                let end_date = self.time_provider.now();
+                info!("Rescheduling task, marking task as UP_FOR_RESCHEDULE");
+                self.client
+                    .reschedule_task(reschedule_date, end_date)
+                    .await?;
+                (ExecutionResultTIState::UpForReschedule, None)
+            }
             // TODO handle different task errors
             Err(e) => {
                 error!("Task failed with error: {}", e);

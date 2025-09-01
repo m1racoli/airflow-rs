@@ -7,7 +7,10 @@ use crate::{
     definitions::Context,
     execution::TaskRuntime,
 };
-use airflow_common::serialization::serde::{self, JsonValue, serialize};
+use airflow_common::{
+    datetime::UtcDateTime,
+    serialization::serde::{self, JsonValue, serialize},
+};
 use alloc::{
     boxed::Box,
     string::{String, ToString},
@@ -18,9 +21,22 @@ use core::{future::Future, pin::Pin};
 /// An error type which represents different errors that can occur during task execution.
 #[derive(thiserror::Error, Debug)]
 pub enum TaskError {
-    // TODO all task specific errors (deferrable, skipped, etc.)
-    #[error("Unknown error")]
-    Unknown,
+    // DownstreamTasksSkipped
+    // DagRunTrigger
+    // TaskDeferred
+    // Skip
+    /// The task should be re-scheduled at a later time.
+    #[error("Task was rescheduled")]
+    Reschedule(UtcDateTime),
+    // Fail
+    // SensorTimeout
+    // TaskTimeout
+    /// A generic error available to the author of the operator.
+    ///
+    /// TODO Maybe we can use anyhow::Error here?
+    #[error("Unknown error: {0}")]
+    Unknown(String),
+    // TODO the following can be combined into an internal AirflowError of some sort
     #[error(transparent)]
     JsonSerde(#[from] serde::JsonSerdeError),
     #[error(transparent)]
