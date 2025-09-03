@@ -185,8 +185,6 @@ impl TaskHandle for TokioTaskHandle {
     }
 
     async fn service(&mut self, timeout: Duration) -> ServiceResult {
-        let timeout = tokio::time::Duration::from_secs(timeout.as_secs());
-
         tokio::select! {
             // handle incoming messages from the task
             msg = self.recv.recv(), if !self.recv.is_closed() => {
