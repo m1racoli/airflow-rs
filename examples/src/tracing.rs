@@ -16,8 +16,6 @@ use tracing_subscriber::field::VisitFmt;
 use tracing_subscriber::field::VisitOutput;
 use tracing_subscriber::fmt::format::DefaultVisitor;
 use tracing_subscriber::fmt::format::Writer;
-use tracing_subscriber::fmt::time::FormatTime;
-use tracing_subscriber::fmt::time::SystemTime;
 use tracing_subscriber::registry::LookupSpan;
 use tracing_subscriber::registry::SpanRef;
 use tracing_subscriber::subscribe::Context;
@@ -72,18 +70,17 @@ impl<T: TimeProvider> TaskLogSubscriber<T> {
         }
     }
 
-    fn format_event<C: Collect + for<'a> LookupSpan<'a>>(
+    fn format_event(
         &self,
+        now: &UtcDateTime,
         event: &tracing::Event<'_>,
-        _ctx: &Context<'_, C>,
     ) -> Result<String, fmt::Error> {
         let meta = event.metadata();
         let mut buf = String::new();
         let mut writer = Writer::new(&mut buf);
 
-        let timer = SystemTime;
+        write!(writer, "{}", now.format("%Y-%m-%dT%H:%M:%S.%3fZ"))?;
 
-        timer.format_time(&mut writer)?;
         writer.write_str(" {")?;
 
         // TODO improve handling of missing metadata
@@ -135,14 +132,11 @@ impl<C: Collect + for<'a> LookupSpan<'a>, T: TimeProvider + 'static> Subscribe<C
         if let Some(span) = ctx.lookup_current()
             && let Some(key) = span.extensions().get::<TaskInstanceKey>()
         {
-            match self.format_event(event, &ctx) {
+            let now = self.time_provider.now();
+            match self.format_event(&now, event) {
                 Ok(msg) => {
                     self.send
-                        .send(LogEvent::Message(
-                            key.clone(),
-                            self.time_provider.now(),
-                            msg,
-                        ))
+                        .send(LogEvent::Message(key.clone(), now, msg))
                         .ok();
                 }
                 Err(_) => {
