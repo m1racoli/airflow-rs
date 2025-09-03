@@ -3,16 +3,17 @@ use airflow_edge_sdk::{
     api::EdgeApiClient,
     worker::{EdgeWorker, Intercom, IntercomMessage, LocalWorkerRuntime},
 };
-use airflow_task_sdk::api::ReqwestExecutionApiClientFactory;
+use airflow_task_sdk::{api::ReqwestExecutionApiClientFactory, definitions::DagBag};
 use examples::{
     StdEdgeApiClient, StdJWTGenerator,
     example::get_dag_bag,
-    tokio::{TokioIntercom, TokioRuntime},
+    tokio::{TokioIntercom, TokioRuntime, TokioTaskRuntime},
     tracing::{
         LogEvent, NonTaskContextFilter, TaskContextFilter, TaskInstanceKeySubscriber,
         TaskLogSubscriber,
     },
 };
+use std::sync::LazyLock;
 use tokio::signal::unix::{SignalKind, signal};
 use tracing::{debug, error, level_filters::LevelFilter};
 use tracing_subscriber::{EnvFilter, fmt, prelude::*};
@@ -20,6 +21,8 @@ use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 static API_AUTH_JWT_SECRET: &str = "rEVfqc5f8WQDLCJcrKKKtQ==";
 
 static EDGE_API_URL: &str = "http://localhost:28080/edge_worker/v1";
+
+static DAG_BAG: LazyLock<DagBag<TokioTaskRuntime>> = LazyLock::new(get_dag_bag);
 
 #[tokio::main]
 async fn main() {
@@ -78,14 +81,12 @@ async fn main() {
         }
     });
 
-    let dag_bag = get_dag_bag();
-
     register_signal(runtime.intercom()).expect("Failed to register signal handler");
     let worker = EdgeWorker::<
         StdEdgeApiClient,
         StdTimeProvider,
         TokioRuntime<ReqwestExecutionApiClientFactory>,
-    >::new(client, time_provider, runtime, dag_bag);
+    >::new(client, time_provider, runtime, &DAG_BAG);
 
     match worker.start().await {
         Ok(_) => {}

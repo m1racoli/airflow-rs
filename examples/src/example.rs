@@ -1,13 +1,11 @@
-use crate::tokio::TokioTaskRuntime;
 use airflow_common::serialization::serde::JsonValue;
 use airflow_task_sdk::{
     bases::operator::Operator,
     definitions::{Context, Dag, DagBag, TaskError},
     execution::TaskRuntime,
 };
-use core::f32;
+use core::{f32, time::Duration};
 use serde_json::json;
-use std::{sync::LazyLock, time::Duration};
 use tracing::{info, warn};
 
 #[derive(Debug, Clone)]
@@ -109,7 +107,7 @@ impl<R: TaskRuntime> Operator<R> for RetryOperator {
     }
 }
 
-static DAG_BAG: LazyLock<DagBag<TokioTaskRuntime>> = LazyLock::new(|| {
+pub fn get_dag_bag<R: TaskRuntime>() -> DagBag<R> {
     let run = ExampleOperator::new(5)
         .into_task("run")
         .with_multiple_outputs(true);
@@ -124,8 +122,4 @@ static DAG_BAG: LazyLock<DagBag<TokioTaskRuntime>> = LazyLock::new(|| {
     let mut dag_bag = DagBag::default();
     dag_bag.add_dag(dag);
     dag_bag
-});
-
-pub fn get_dag_bag() -> &'static DagBag<TokioTaskRuntime> {
-    &DAG_BAG
 }
