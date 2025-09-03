@@ -1,3 +1,4 @@
+use core::future::Future;
 use core::time::Duration;
 
 use airflow_common::datetime::TimeProvider;
@@ -47,4 +48,6 @@ pub trait TaskRuntime: Sized + 'static {
     fn time_provider(&self) -> &Self::TimeProvider;
 
     fn start(&self, details: StartupDetails, dag_bag: &'static DagBag<Self>) -> Self::TaskHandle;
+
+    fn sleep(duration: Duration) -> impl Future<Output = ()> + Send + Sync;
 }

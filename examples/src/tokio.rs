@@ -280,6 +280,10 @@ impl TaskRuntime for TokioTaskRuntime {
     fn time_provider(&self) -> &Self::TimeProvider {
         &StdTimeProvider
     }
+
+    fn sleep(duration: Duration) -> impl Future<Output = ()> + Send + Sync {
+        tokio::time::sleep(duration)
+    }
 }
 
 pub struct TokioSupervisorComms(

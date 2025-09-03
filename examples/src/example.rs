@@ -8,17 +8,18 @@ use airflow_task_sdk::{
 use core::f32;
 use serde_json::json;
 use std::{sync::LazyLock, time::Duration};
-use tokio::time::sleep;
 use tracing::{info, warn};
 
 #[derive(Debug, Clone)]
 pub struct ExampleOperator {
-    sleep_secs: u64,
+    sleep: Duration,
 }
 
 impl ExampleOperator {
     pub fn new(sleep_secs: u64) -> Self {
-        Self { sleep_secs }
+        Self {
+            sleep: Duration::from_secs(sleep_secs),
+        }
     }
 }
 
@@ -37,7 +38,8 @@ impl<R: TaskRuntime> Operator<R> for ExampleOperator {
 
         ctx.task_instance().xcom_push("example_key", &42).await?;
 
-        sleep(Duration::from_secs(self.sleep_secs)).await;
+        R::sleep(self.sleep).await;
+
         warn!("This feels very fast! 😎");
         info!("I am done");
 
