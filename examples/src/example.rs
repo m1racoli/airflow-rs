@@ -1,11 +1,6 @@
-use airflow_common::serialization::serde::JsonValue;
-use airflow_task_sdk::{
-    bases::operator::Operator,
-    definitions::{Context, Dag, DagBag, TaskError},
-    execution::TaskRuntime,
-};
+use airflow_task_sdk::prelude::*;
 use core::{f32, time::Duration};
-use serde_json::json;
+use serde_json::{Value, json};
 use tracing::{info, warn};
 
 #[derive(Debug, Clone)]
@@ -22,7 +17,7 @@ impl ExampleOperator {
 }
 
 impl<R: TaskRuntime> Operator<R> for ExampleOperator {
-    type Output = JsonValue;
+    type Output = Value;
 
     async fn execute<'t>(&'t mut self, ctx: &'t Context<'t, R>) -> Result<Self::Output, TaskError> {
         info!(
