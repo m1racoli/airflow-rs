@@ -16,11 +16,11 @@ use airflow_task_sdk::{
         TaskHandle, TaskRunner, TaskRuntime, ToSupervisor, ToTask, supervise,
     },
 };
-use log::{debug, error, info};
 use tokio::{
     sync::{mpsc, oneshot},
     task::JoinHandle,
 };
+use tracing::{debug, error, info};
 
 // TODO where should this be defined?
 static EXECUTION_API_SERVER_URL: &str = "http://localhost:28080/execution";

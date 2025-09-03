@@ -114,9 +114,9 @@ impl<T: TimeProvider> TaskLogSubscriber<T> {
         let fmt_level = FmtLevel::new(meta.level());
         write!(writer, "{}", fmt_level)?;
 
-        writer.write_str(" -")?;
+        writer.write_str(" - ")?;
 
-        let mut visitor = DefaultVisitor::new(writer, false);
+        let mut visitor = DefaultVisitor::new(writer, true);
         event.record(&mut visitor);
         let writer = visitor.writer();
         writer.write_char('\n')?;

@@ -12,7 +12,7 @@ use airflow_common::{
 };
 use alloc::{string::ToString, vec::Vec};
 use core::{error::Error, marker::PhantomData};
-use log::info;
+use tracing::info;
 
 pub static XCOM_RETURN_KEY: &str = "return_value";
 
@@ -208,7 +208,12 @@ impl<X: XComBackend> XCom<X> {
             // we just show the warning and continue as usual, because defaults
             // are implemented by deserializing Options.
             info!(
-                "No XCom value found; defaulting to None. key={key} dag_id={dag_id} task_id={task_id} run_id={run_id} map_index={map_index}"
+                key = key,
+                dag_id = dag_id,
+                task_id = task_id,
+                run_id = run_id,
+                map_index = map_index.to_string(),
+                "No XCom value found; defaulting to None."
             );
         }
 

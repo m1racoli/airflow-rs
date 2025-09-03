@@ -5,9 +5,9 @@ use airflow_common::{
     serialization::serde::JsonValue,
     utils::{MapIndex, SecretString, TaskInstanceState, TerminalTIStateNonSuccess},
 };
-use log::{debug, error};
 use reqwest::{Method, Response, StatusCode, header::HeaderMap};
 use serde::Serialize;
+use tracing::{debug, error};
 
 #[derive(Debug, Clone, Default)]
 pub struct ReqwestExecutionApiClientFactory;
@@ -229,10 +229,13 @@ impl ExecutionApiClient for ReqwestExecutionApiClient {
             match token.to_str() {
                 Ok(token) => {
                     self.token = token.into();
-                    debug!("Updated API token from API server");
+                    debug!(id = id.to_string(), "Updated API token from API server");
                 }
                 Err(_) => {
-                    error!("Failed to parse Refreshed-API-Token header");
+                    error!(
+                        id = id.to_string(),
+                        "Failed to parse Refreshed-API-Token header"
+                    );
                 }
             }
         }

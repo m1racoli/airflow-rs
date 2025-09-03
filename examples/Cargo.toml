@@ -12,7 +12,6 @@ airflow-common = { path = "../airflow-common" }
 airflow-edge-sdk = { path = "../airflow-edge-sdk" }
 airflow-task-sdk = { path = "../airflow-task-sdk" }
 dotenvy = "0.15"
-log = { version = "0.4" }
 reqwest = { version = "0.12", features = ["json"] }
 serde_json = { version = "1", default-features = false, features = ["alloc"] }
 thiserror = "2"

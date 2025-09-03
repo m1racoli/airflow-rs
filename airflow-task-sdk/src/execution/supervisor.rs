@@ -11,11 +11,12 @@ use crate::{
 use airflow_common::{
     datetime::TimeProvider,
     executors::{ExecuteTask, TaskInstance},
+    models::TaskInstanceLike,
 };
 use alloc::string::{String, ToString};
 use core::cmp;
 use core::time;
-use log::{debug, error, info, warn};
+use tracing::{debug, error, info, warn};
 
 // TODO conf
 static HEARTBEAT_TIMEOUT: u64 = 300; // seconds
@@ -34,7 +35,7 @@ where
     R: TaskRuntime,
 {
     let ti = task.ti();
-    debug!("Supervising task: {:?}", ti);
+    debug!(ti = ti.ti_key().to_string(), "Supervising task");
     let start = runtime.now();
 
     // logging setup?
@@ -43,7 +44,10 @@ where
     let client = match client_factory.create(server, task.token()) {
         Ok(c) => c,
         Err(e) => {
-            error!("Failed to create execution API client: {}", e);
+            error!(
+                id = ti.ti_key().to_string(),
+                "Failed to create execution API client: {}", e
+            );
             return false;
         }
     };
@@ -51,7 +55,7 @@ where
     let active_task = match ActivityTask::start(ti, client, dag_bag, runtime).await {
         Ok(task) => task,
         Err(e) => {
-            error!("Failed to start task: {}", e);
+            error!(id = ti.ti_key().to_string(), "Failed to start task: {}", e);
             return false;
         }
     };
@@ -61,7 +65,10 @@ where
         Err(e) => match e {
             ActivityError::ServerTerminated => "SERVER_TERMINATED".to_string(),
             e => {
-                error!("Failed to complete task: {}", e);
+                error!(
+                    id = ti.ti_key().to_string(),
+                    "Failed to complete task: {}", e
+                );
                 return false;
             }
         },
@@ -384,7 +391,7 @@ where
         }
 
         self.last_heartbeat_attempt = self.runtime.now();
-        debug!("{}: Sending heartbeat", self.ti.id());
+        debug!(id = self.ti.id().to_string(), "Sending heartbeat");
         match self
             .client
             .task_instances_heartbeat(&self.ti.id(), self.runtime.hostname(), self.runtime.pid())
@@ -414,20 +421,18 @@ where
                 Ok(())
             }
             Err(e) => {
-                // error!("Error sending heartbeat: {}", e);
                 self.failed_heartbeats += 1;
                 if self.failed_heartbeats >= MAX_FAILED_HEARTBEATS {
-                    error!("{}: {e}", self.ti.id());
                     error!(
-                        "{}: Too many failed heartbeats; terminating task",
-                        self.ti.id()
+                        id = self.ti.id().to_string(),
+                        "Too many failed heartbeats; terminating task: {}", e
                     );
                     self.handle.abort();
                     Err(e)
                 } else {
                     warn!(
-                        "{}: Failed to send heartbeat ({} of {}): {e}",
-                        self.ti.id(),
+                        id = self.ti.id().to_string(),
+                        "Failed to send heartbeat ({} of {}): {e}",
                         self.failed_heartbeats,
                         MAX_FAILED_HEARTBEATS
                     );

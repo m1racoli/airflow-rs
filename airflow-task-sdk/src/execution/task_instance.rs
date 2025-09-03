@@ -14,8 +14,8 @@ use airflow_common::{
 };
 use alloc::string::{String, ToString};
 use core::fmt::Display;
-use log::error;
 use once_cell::sync::OnceCell;
+use tracing::error;
 
 pub struct RuntimeTaskInstance<'t, R: TaskRuntime> {
     id: UniqueTaskInstanceId,
@@ -77,11 +77,11 @@ impl<'t, R: TaskRuntime> RuntimeTaskInstance<'t, R> {
         let task_id = details.ti.task_id();
 
         let dag = dag_bag.get_dag(dag_id).ok_or_else(|| {
-            error!("DAG not found: {}", dag_id);
+            error!(dag_id = dag_id, "DAG not found.");
             ExecutionError::DagNotFound(dag_id.to_string())
         })?;
         let task = dag.get_task(task_id).ok_or_else(|| {
-            error!("Task not found in DAG {}: {}", dag_id, task_id);
+            error!(dag_id = dag_id, task_id = task_id, "Task not found.");
             ExecutionError::TaskNotFound(dag_id.to_string(), task_id.to_string())
         })?;
 

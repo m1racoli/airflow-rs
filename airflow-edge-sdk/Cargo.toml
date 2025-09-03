@@ -12,8 +12,8 @@ airflow-task-sdk = { path = "../airflow-task-sdk", default-features = false }
 cfg-if = "1"
 serde = { version = "1", default-features = false, features = ["derive", "alloc"] }
 thiserror = { version = "2", default-features = false }
+tracing = { git = "https://github.com/tokio-rs/tracing.git", branch = "v0.2.x", default-features = false }
 trait-variant = "0.1"
-log = { version = "0.4" }
 
 # Optional dependencies
 reqwest = { version = "0.12", default-features = false, features = ["json"], optional = true }
@@ -26,4 +26,4 @@ tokio = { version = "1", features = ["macros"] }
 [features]
 default = ["reqwest", "std"]
 reqwest = ["dep:reqwest"]
-std = ["airflow-common/std", "log/std", "serde/std", "serde_json/std", "thiserror/std"]
+std = ["airflow-common/std", "serde/std", "serde_json/std", "thiserror/std", "tracing/std"]

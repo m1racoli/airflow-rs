@@ -13,8 +13,11 @@ use airflow_common::{
     executors::TaskInstance,
     serialization::serde::{JsonSerialize, JsonValue},
 };
-use alloc::{string::String, vec};
-use log::{debug, error, info};
+use alloc::{
+    string::{String, ToString},
+    vec,
+};
+use tracing::{debug, error, info};
 
 #[derive(Debug)]
 pub struct StartupDetails {
@@ -59,7 +62,7 @@ impl<R: TaskRuntime> TaskRunner<R> {
     ) -> Result<(), TaskError> {
         // clear the xcom data sent from server
         for key in ti.ti_context_from_server.xcom_keys_to_clear.iter() {
-            debug!("Clearing XCom key: {}", key);
+            debug!(key = key, "Clearing XCom key");
             XCom::<BaseXcom>::delete(
                 &self.client,
                 ti.dag_id(),
@@ -198,7 +201,7 @@ impl<R: TaskRuntime> TaskRunner<R> {
             None
         };
 
-        info!("Pushing xcom {}", ti);
+        info!(ti = ti.to_string(), "Pushing xcom");
 
         if ti.task.multiple_outputs() {
             match &xcom_value {
@@ -249,17 +252,6 @@ impl<R: TaskRuntime> TaskRunner<R> {
         Ok(())
     }
 
-    #[cfg(not(feature = "tracing"))]
-    /// Perform the actual task execution with the given startup details
-    pub async fn main(
-        self,
-        what: StartupDetails,
-        dag_bag: &DagBag<R>,
-    ) -> Result<(), ExecutionError> {
-        self._main(what, dag_bag).await
-    }
-
-    #[cfg(feature = "tracing")]
     /// Perform the actual task execution with the given startup details
     ///
     /// The task execution is instrumented with a special tracing span

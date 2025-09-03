@@ -9,14 +9,13 @@ rust-version.workspace = true
 [dependencies]
 airflow-common = { path = "../airflow-common", default-features = false }
 cfg-if = "1"
-log = { version = "0.4" }
 once_cell = { version = "1", default-features = false }
 serde = { version = "1", default-features = false, features = ["derive", "alloc"] }
 thiserror = { version = "2", default-features = false }
+tracing = { git = "https://github.com/tokio-rs/tracing.git", branch = "v0.2.x", default-features = false }
 trait-variant = "0.1"
 
 reqwest = { version = "0.12", default-features = false, features = ["json"], optional = true }
-tracing = { git = "https://github.com/tokio-rs/tracing.git", branch = "v0.2.x", default-features = false, optional = true }
 
 [dev-dependencies]
 httpmock = "0.8.0-alpha.1"
@@ -25,7 +24,6 @@ tokio = { version = "1", features = ["macros"] }
 
 [features]
 critical-section = ["once_cell/critical-section"]
-default = ["reqwest", "std", "tracing"]
+default = ["reqwest", "std"]
 reqwest = ["dep:reqwest"]
-std = ["airflow-common/std", "once_cell/std", "serde/std", "serde_json/std", "thiserror/std", "tracing?/std"]
-tracing = ["dep:tracing"]
+std = ["airflow-common/std", "once_cell/std", "serde/std", "serde_json/std", "thiserror/std", "tracing/std"]

@@ -17,7 +17,7 @@ use airflow_common::datetime::{MIN_UTC, TimeProvider, UtcDateTime};
 use airflow_common::models::{TaskInstanceKey, TaskInstanceLike};
 use airflow_common::utils::TaskInstanceState;
 use airflow_task_sdk::definitions::DagBag;
-use log::{debug, error, info};
+use tracing::{debug, error, info};
 
 pub static EDGE_HEARTBEAT_INTERVAL: u64 = 30; // seconds
 pub static EDGE_JOB_POLL_INTERVAL: u64 = 5; // seconds
