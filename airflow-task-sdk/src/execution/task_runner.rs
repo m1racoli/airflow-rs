@@ -76,7 +76,7 @@ impl<R: TaskRuntime> TaskRunner<R> {
 
         // TODO call on_execute_callback
 
-        let task = ti.task;
+        let mut task = ti.task.clone();
         match task.execute(context).await {
             Ok(result) => Ok(self.push_xcom_if_needed(result, ti).await?),
             Err(e) => Err(e),
@@ -203,7 +203,7 @@ impl<R: TaskRuntime> TaskRunner<R> {
 
         info!(ti = ti.to_string(), "Pushing xcom");
 
-        if ti.task.multiple_outputs() {
+        if ti.task.opts().multiple_outputs {
             match &xcom_value {
                 JsonValue::Object(map) => {
                     for (key, value) in map {
