@@ -76,8 +76,7 @@ impl<R: TaskRuntime> TaskRunner<R> {
 
         // TODO call on_execute_callback
 
-        let mut task = ti.task.clone();
-        match task.execute(context).await {
+        match ti.task.execute(context).await {
             Ok(result) => Ok(self.push_xcom_if_needed(result, ti).await?),
             Err(e) => Err(e),
         }

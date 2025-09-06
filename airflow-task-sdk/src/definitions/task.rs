@@ -67,11 +67,13 @@ impl<R: TaskRuntime> Clone for Task<R> {
 
 impl<R: TaskRuntime> Task<R> {
     pub fn new(task_id: &str, operator: impl Operator<R> + 'static) -> Self {
+        let mut opts = OperatorOpts::default();
+        operator.set_opts(&mut opts);
         Self {
             task_id: task_id.to_string(),
             operator: Box::new(operator),
             do_xcom_push: true,
-            opts: OperatorOpts::default(),
+            opts,
         }
     }
 
@@ -92,12 +94,9 @@ impl<R: TaskRuntime> Task<R> {
         &self.task_id
     }
 
-    pub async fn execute<'t>(
-        &'t mut self,
-        ctx: &'t Context<'t, R>,
-    ) -> Result<JsonValue, TaskError> {
-        self.operator.set_opts(&mut self.opts);
-        self.operator.execute_box(ctx).await
+    pub async fn execute<'t>(&'t self, ctx: &'t Context<'t, R>) -> Result<JsonValue, TaskError> {
+        let mut operator = self.operator.clone_box();
+        operator.execute_box(ctx).await
     }
 }
 
@@ -114,8 +113,6 @@ trait DynOperator<R: TaskRuntime>: Send + Sync + 'static {
     ) -> Pin<Box<dyn Future<Output = Result<JsonValue, TaskError>> + Send + Sync + 't>>;
 
     fn clone_box(&self) -> Box<dyn DynOperator<R> + 'static>;
-
-    fn set_opts(&self, opts: &mut OperatorOpts);
 }
 
 impl<T, R: TaskRuntime> DynOperator<R> for T
@@ -136,9 +133,5 @@ where
 
     fn clone_box(&self) -> Box<dyn DynOperator<R> + 'static> {
         Box::new(self.clone())
-    }
-
-    fn set_opts(&self, opts: &mut OperatorOpts) {
-        self.set_opts(opts);
     }
 }
