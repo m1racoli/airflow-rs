@@ -53,7 +53,7 @@ impl WorkerState {
     pub fn sys_info(&self) -> SysInfo {
         SysInfo {
             airflow_version: "3.1.0".to_string(),
-            edge_provider_version: "1.1.3".to_string(),
+            edge_provider_version: "1.2.0".to_string(),
             concurrency: self.concurrency(),
             free_concurrency: self.free_concurrency(),
         }
