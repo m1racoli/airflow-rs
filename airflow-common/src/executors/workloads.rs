@@ -66,10 +66,6 @@ impl ExecuteTask {
     }
 }
 
-// TODO: what is context carrier?
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ContextCarrier;
-
 /// Schema for TaskInstance with minimal required fields needed for Executors and Task SDK.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaskInstance {
@@ -85,7 +81,7 @@ pub struct TaskInstance {
     queue: String,
     priority_weight: u64,
 
-    // TODO tracing info
+    // TODO: what is context carrier? tracing info?
     // parent_context_carrier: Option<ContextCarrier>,
     // context_carrier: Option<ContextCarrier>,
     queued_dttm: Option<UtcDateTime>,
