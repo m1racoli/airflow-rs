@@ -30,6 +30,8 @@ pub struct WorkerState {
     drain: bool,
     maintenance_comments: Option<String>,
     maintenance_mode: bool,
+    airflow_version: &'static str,
+    edge_provider_version: &'static str,
 }
 
 impl WorkerState {
@@ -52,8 +54,8 @@ impl WorkerState {
     /// Get the system information of the edge worker.
     pub fn sys_info(&self) -> SysInfo {
         SysInfo {
-            airflow_version: "3.1.0".to_string(),
-            edge_provider_version: "1.2.0".to_string(),
+            airflow_version: self.airflow_version.to_string(),
+            edge_provider_version: self.edge_provider_version.to_string(),
             concurrency: self.concurrency(),
             free_concurrency: self.free_concurrency(),
         }
@@ -108,6 +110,11 @@ impl<C: LocalEdgeApiClient, T: TimeProvider, R: LocalWorkerRuntime> EdgeWorker<C
         runtime: R,
         dag_bag: &'static DagBag<R::TaskRuntime>,
     ) -> Self {
+        // TODO a better way to set these for the API server
+        // https://github.com/m1racoli/airflow-rs/issues/1
+        let airflow_version = env!("AIRFLOW_VERSION");
+        let edge_provider_version = env!("EDGE_PROVIDER_VERSION");
+
         let state = WorkerState {
             used_concurrency: 0,
             concurrency: runtime.concurrency(),
@@ -115,6 +122,8 @@ impl<C: LocalEdgeApiClient, T: TimeProvider, R: LocalWorkerRuntime> EdgeWorker<C
             drain: false,
             maintenance_comments: None,
             maintenance_mode: false,
+            airflow_version,
+            edge_provider_version,
         };
         EdgeWorker {
             client,
