@@ -21,25 +21,28 @@ pub trait Operator<R: TaskRuntime>: Clone + 'static {
     ///
     /// # Example
     /// ```
-    /// use airflow_task_sdk::definitions::{Dag, DagBag, Operator};
+    /// use airflow_task_sdk::prelude::*;
     ///
     /// #[derive(Clone, Default)]
     /// struct MyOperator;
     ///
-    /// impl Operator for MyOperator {
-    ///     type Item = ();
+    /// impl<R: TaskRuntime> Operator<R> for MyOperator {
+    ///     type Output = ();
     ///
-    ///     async fn execute<'t>(&'t mut self, ctx: &'t Context) -> Result<Self::Item, TaskError> {
+    ///     async fn execute<'t>(&'t mut self, ctx: &'t Context<'t, R>) -> Result<Self::Output, TaskError> {
     ///         Ok(())
     ///     }
     /// }
     ///
-    /// let my_operator = MyOperator::default();
-    /// let my_task = my_operator.into_task("my_task_id");
-    /// let mut dag = Dag::new("my_dag_id");
-    /// dag.add_task(my_task);
-    /// let mut dag_bag = DagBag::default();
-    /// dag_bag.add_dag(dag);
+    /// pub fn get_dag_bag<R: TaskRuntime>() -> DagBag<R> {
+    ///     let my_operator = MyOperator::default();
+    ///     let my_task = my_operator.into_task("my_task_id");
+    ///     let mut dag = Dag::new("my_dag_id");
+    ///     dag.add_task(my_task);
+    ///     let mut dag_bag = DagBag::default();
+    ///     dag_bag.add_dag(dag);
+    ///     dag_bag
+    /// }
     /// ```
     fn into_task(self, task_id: &str) -> Task<R> {
         Task::new(task_id, self)
