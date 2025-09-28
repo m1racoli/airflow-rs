@@ -1,9 +1,18 @@
 [workspace]
 resolver = "2"
-package.rust-version = "1.89"
 members = [
     "airflow-common",
     "airflow-edge-sdk",
     "airflow-task-sdk",
     "examples",
 ]
+
+[workspace.package]
+authors = ["Cedrik Neumann <7921017+m1racoli@users.noreply.github.com>"]
+categories = ["no-std"]
+edition = "2024"
+keywords = ["airflow"]
+license-file = "LICENSE"
+publish = false
+repository = "https://github.com/m1racoli/airflow-rs"
+rust-version = "1.89"

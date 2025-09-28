@@ -1,11 +1,14 @@
 [package]
 name = "examples"
 version = "0.0.0"
-edition = "2024"
-license-file = "../LICENSE"
-publish = false
-rust-version.workspace = true
 default-run = "edge-worker"
+publish = false
+# workspace"
+authors.workspace = true
+edition.workspace = true
+keywords.workspace = true
+license-file.workspace = true
+rust-version.workspace = true
 
 [dependencies]
 airflow-common = { path = "../airflow-common" }

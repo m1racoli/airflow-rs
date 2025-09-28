@@ -1,9 +1,14 @@
 [package]
 name = "airflow-edge-sdk"
+description = "Edge Executor for Apache Airflow."
 version = "0.0.1"
-edition = "2024"
-license-file = "../LICENSE"
-publish = false
+# workspace
+authors.workspace = true
+categories.workspace = true
+edition.workspace = true
+keywords.workspace = true
+license-file.workspace = true
+publish.workspace = true
 rust-version.workspace = true
 
 [dependencies]

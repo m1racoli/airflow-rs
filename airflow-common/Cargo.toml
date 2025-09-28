@@ -1,10 +1,14 @@
 [package]
 name = "airflow-common"
-version = "0.0.1"
-edition = "2024"
 description = "Common definitions and traits for working with Airflow."
-license-file = "../LICENSE"
-publish = false
+version = "0.0.1"
+# workspace
+authors.workspace = true
+categories.workspace = true
+edition.workspace = true
+keywords.workspace = true
+license-file.workspace = true
+publish.workspace = true
 rust-version.workspace = true
 
 [dependencies]
